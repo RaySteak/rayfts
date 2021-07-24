@@ -294,7 +294,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, int to
     strtok_r(url, " \r\n", &saved);
     string url_string = url;
     if (strstr(url, ".."))
-        return HTTPresponse(401).end_header();
+        return HTTPresponse(401).file_attachment(string("Incercati sa ma hackati dar in balta va inecati"), HTTPresponse::MIME::text);
     if (!strcmp(url, "/login"))
     {
         switch (method)
