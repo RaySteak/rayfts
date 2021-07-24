@@ -2,14 +2,14 @@
 
 CC = g++
 CFLAGS = -Wall -Wextra -std=c++17 -c
-LDFLAGS = -Wall -Wextra -std=c++17 -lstdc++fs
+LDFLAGS = -Wall -Wextra -std=c++17
 LDLIBS = -lstdc++fs
 HEADERS = common_utils.h WebServer.h HTTPresponse.h Cookie.h SessionCookie.h
 
 all: server
 
 server: server.o WebServer.o HTTPresponse.o Cookie.o SessionCookie.o
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 server.o: server.cpp $(HEADERS)
 	$(CC) $(CFLAGS) -o $@ $< $(LDLIBS)
