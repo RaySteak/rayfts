@@ -147,7 +147,7 @@ int WebServer::process_http_header(int fd, char *buffer, int read_size, int head
                 delete data;
                 return 0;
             }
-            int n = recv(fd, buffer + nr, remaining, 0);
+            int n = recv(fd, data + nr, remaining, 0);
             if (n <= 0)
             {
                 delete data;
@@ -295,7 +295,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, int to
     string url_string = url;
     if (strstr(url, ".."))
         return HTTPresponse(401).end_header();
-
     if (!strcmp(url, "/login"))
     {
         switch (method)
