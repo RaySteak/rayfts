@@ -389,6 +389,8 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, int to
                 return not_implemented;
             //TODO: also check here (both existence of folder_name and also succesful directory creation)
             string folder_name = fields["folder_name"];
+            if (folder_name.length() > 255)
+                return HTTPresponse(303).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
             fs::create_directory(path + folder_name);
             //responsd with redirect (Post/Redirect/Get pattern) to avoid form resubmission
             return HTTPresponse(303).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
