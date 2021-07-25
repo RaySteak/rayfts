@@ -394,12 +394,13 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, int to
             string folder_name = fields["folder_name"];
             // This check is redundant if user operates from browser, because it is also performed
             // in the javascript of the site but requests might not come from browsers
-            if (folder_name.length() > 255 ||
-                folder_name.find('/') != std::string::npos ||
-                folder_name.find('&') != std::string::npos ||
-                folder_name.find('%') != std::string::npos ||
-                folder_name.find('~') != std::string::npos)
+            if (folder_name.length() > 255 || folder_name.find("..") != std::string::npos)
                 return HTTPresponse(303).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
+            for (auto &c : folder_name)
+            {
+                if (strchr("&/%~=", c)) // list of characters not accepted
+                    return HTTPresponse(303).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
+            }
             fs::create_directory(path + folder_name);
             //responsd with redirect (Post/Redirect/Get pattern) to avoid form resubmission
             return HTTPresponse(303).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
