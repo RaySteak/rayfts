@@ -354,7 +354,11 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, int to
         std::ifstream file(path, std::ios::binary);
         bool doesnt_exist = !dir.exists(); // file opens for both folders and files
         if (!doesnt_exist)
+        {
             file.close();
+            if (dir.is_directory() && url_string[url_string.length() - 1] != '/')
+                return HTTPresponse(303).location(url_string + "/").file_attachment(redirect, HTTPresponse::MIME::text);
+        }
 
         switch (method)
         {
@@ -388,7 +392,13 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, int to
                 return not_implemented;
             //TODO: also check here (both existence of folder_name and also succesful directory creation)
             string folder_name = fields["folder_name"];
-            if (folder_name.length() > 255)
+            // This check is redundant if user operates from browser, because it is also performed
+            // in the javascript of the site but requests might not come from browsers
+            if (folder_name.length() > 255 ||
+                folder_name.find('/') != std::string::npos ||
+                folder_name.find('&') != std::string::npos ||
+                folder_name.find('%') != std::string::npos ||
+                folder_name.find('~') != std::string::npos)
                 return HTTPresponse(303).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
             fs::create_directory(path + folder_name);
             //responsd with redirect (Post/Redirect/Get pattern) to avoid form resubmission

@@ -8,7 +8,28 @@
 <input type="submit" value="Delete selected">
 </form>
 <form method="post">
-    <input type="text" name="folder_name" placeholder="Folder name">
-    <input type="submit" value="Create folder">
+    <input type="text" name="folder_name" placeholder="Folder name" id="folder_name" onkeyup="check()" required>
+    <input type="submit" value="Create folder" id="create_folder_button">
+    <div class="gap-20" id="error"></div>
 </form>
 </body>
+<script>
+    function check() {
+        var folder_name = document.getElementById("folder_name").value;
+        var not_allowed = ["&", "/", "%", "~", ".."];
+        var create_button = document.getElementById("create_folder_button");
+        var error_message = document.getElementById("error");
+        if (folder_name.length > 255) {
+            error_message.innerHTML = "Names must not be longer than 255 characters";
+            create_button.disabled = true;
+            return;
+        }
+        if (not_allowed.some(letter => folder_name.includes(letter))) {
+            error_message.innerHTML = "Names must not contain the following: " + not_allowed.join(" ");
+            create_button.disabled = true;
+            return;
+        }
+        error_message.innerHTML = "";
+        create_button.disabled = false;
+    }
+</script>
