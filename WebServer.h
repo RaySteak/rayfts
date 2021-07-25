@@ -31,7 +31,7 @@ private:
     void process_cookies();
     HTTPresponse process_http_request(char *data, int header_size, int total_size);
 
-    const int timeout_secs = 1;
+    const int timeout_secs = 0;
     const int timeout_micro = 100000;
 
 public:

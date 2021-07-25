@@ -52,6 +52,23 @@ int WebServer::send_exactly(int fd, const char *buffer, int count)
     return nr;
 }
 
+WebServer::Method get_method(char *data)
+{
+    if (!strncmp(data, "GET", 3))
+        return WebServer::Method::GET;
+    if (!strncmp(data, "HEAD", 4))
+        return WebServer::Method::HEAD;
+    if (!strncmp(data, "POST", 4))
+        return WebServer::Method::POST;
+    if (!strncmp(data, "PUT", 3))
+        return WebServer::Method::PUT;
+    if (!strncmp(data, "DELETE", 6))
+        return WebServer::Method::DELETE;
+    if (!strncmp(data, "OPTIONS", 7))
+        return WebServer::Method::OPTIONS;
+    return WebServer::Method::nil;
+}
+
 int WebServer::recv_http_header(int fd, char *buffer, int max, int &header_size)
 {
     fd_set wait_set, tmp_wait;
@@ -73,6 +90,20 @@ int WebServer::recv_http_header(int fd, char *buffer, int max, int &header_size)
         if (n <= 0)
             return n;
         buffer[nr + n] = 0;
+        if (nr == 0)
+        {
+            if (get_method(buffer) == Method::nil)
+                return 0;
+            char *http = strstr(buffer, "HTTP/1.1");
+            if (!http)
+                return 0;
+            char *first_crlf = strstr(buffer, CRLF);
+            if (!first_crlf || first_crlf - http < 0)
+                return 0;
+            char *url = strchr(buffer, '/');
+            if (!url || url - http > 0)
+                return 0;
+        }
         nr += n;
         if ((terminator = strstr(buffer, CRLFx2)))
             break;
@@ -80,18 +111,7 @@ int WebServer::recv_http_header(int fd, char *buffer, int max, int &header_size)
 
     if (!terminator)
         return 0;
-    terminator[0] = 0;
     header_size = terminator - buffer + strlen(CRLFx2);
-    char *http = strstr(buffer, "HTTP/1.1");
-    if (!http)
-        return 0;
-    terminator[0] = '\r';
-    char *first_crlf = strstr(buffer, CRLF);
-    if (first_crlf - http < 0)
-        return 0;
-    char *url = strchr(buffer, '/');
-    if (!url || url - http > 0)
-        return 0;
     return nr;
 }
 
@@ -179,23 +199,6 @@ unordered_map<string, string> get_content_fields(char *content)
         fields.insert({field, val});
     }
     return fields;
-}
-
-WebServer::Method get_method(char *data)
-{
-    if (!strncmp(data, "GET", 3))
-        return WebServer::Method::GET;
-    if (!strncmp(data, "HEAD", 4))
-        return WebServer::Method::HEAD;
-    if (!strncmp(data, "POST", 4))
-        return WebServer::Method::POST;
-    if (!strncmp(data, "PUT", 3))
-        return WebServer::Method::PUT;
-    if (!strncmp(data, "DELETE", 6))
-        return WebServer::Method::DELETE;
-    if (!strncmp(data, "OPTIONS", 7))
-        return WebServer::Method::OPTIONS;
-    return WebServer::Method::nil;
 }
 
 void WebServer::process_cookies()
