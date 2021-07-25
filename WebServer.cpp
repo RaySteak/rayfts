@@ -443,8 +443,7 @@ void WebServer::run()
                 {
                     int header_size;
                     n = recv_http_header(i, buffer, BUFLEN, header_size);
-                    DIE(n < 0, "recv");
-                    if (n == 0) // connection closed or incorrect request or timeout
+                    if (n <= 0) // connection closed or incorrect request or timeout
                     {
                         close_connection(i);
                         continue;
