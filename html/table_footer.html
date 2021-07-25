@@ -16,7 +16,7 @@
 <script>
     function check() {
         var folder_name = document.getElementById("folder_name").value;
-        var not_allowed = ["&", "/", "%", "~", ".."];
+        var not_allowed = ["&", "/", "%", "~", "..", "="];
         var create_button = document.getElementById("create_folder_button");
         var error_message = document.getElementById("error");
         if (folder_name.length > 255) {
