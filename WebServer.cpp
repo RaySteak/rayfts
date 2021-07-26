@@ -509,10 +509,11 @@ void WebServer::run()
                     }
 
                     std::cout << data << '\n';
+                    std::cout << "\nPregatim raspunsul...\n";
                     HTTPresponse response = process_http_request(data, header_size, n, total);
-                    //std::cout << response;
-
+                    std::cout << "Trimitem raspunsul\n";
                     send_exactly(i, response.to_c_str(), response.size());
+                    std::cout << "Am trimis raspunsul\n";
 
                     delete data;
                 }
