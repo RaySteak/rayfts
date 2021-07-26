@@ -419,21 +419,23 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             }
             if (!dir.is_directory())
                 return not_implemented;
-
             data[header_size - 1] = 0;
             char *content_type = strstr(data, "Content-Type: ");
-            content_type = content_type + strlen("Content-Type: ");
-            strtok_r(content_type, "; \r\n", &saved);
-            if (!strcmp(content_type, "multipart/form-data")) // file upload
+            if (content_type)
             {
-                char *boundary = strtok_r(NULL, "\r\n", &saved);
-                if (!strncmp(boundary, "boundary=", 9))
+                content_type = content_type + strlen("Content-Type: ");
+                strtok_r(content_type, "; \r\n", &saved);
+                if (!strcmp(content_type, "multipart/form-data")) // file upload
                 {
-                    boundary += strlen("boundary=");
-                    string boundary_str = boundary;
-                    //TODO: the rest
+                    char *boundary = strtok_r(NULL, "\r\n", &saved);
+                    if (!strncmp(boundary, "boundary=", 9))
+                    {
+                        boundary += strlen("boundary=");
+                        string boundary_str = boundary;
+                        //TODO: the rest
+                    }
+                    return HTTPresponse(400).end_header();
                 }
-                return HTTPresponse(400).end_header();
             }
             auto fields = get_content_fields(content);
             //TODO: also check here (both existence of folder_name and also succesful directory creation)
@@ -506,7 +508,7 @@ void WebServer::run()
                         continue;
                     }
 
-                    std::cout << data << '\n';
+                    //std::cout << data << '\n';
                     std::cout << "\nPregatim raspunsul...\n";
                     HTTPresponse response = process_http_request(data, header_size, n, total);
                     std::cout << "Trimitem raspunsul\n";
