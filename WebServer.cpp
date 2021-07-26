@@ -510,7 +510,14 @@ void WebServer::run()
                     std::cout << "\nPregatim raspunsul...\n";
                     HTTPresponse response = process_http_request(data, header_size, n, total);
                     std::cout << "Trimitem raspunsul\n";
+                    //std::cout << response;
                     send_exactly(i, response.to_c_str(), response.size());
+                    for (response.begin_file_transfer(); response.has_more_segments(); response.next_file_segment())
+                    {
+                        //std::cout << "Fragment nou\n";
+                        send_exactly(i, response.get_file_segment(), response.segment_size());
+                        //std::cout << response.get_file_segment();
+                    }
                     std::cout << "Am trimis raspunsul\n";
 
                     delete data;

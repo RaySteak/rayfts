@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <ostream>
+#include <fstream>
 #include "Cookie.h"
 
 #define CRLF "\r\n"
@@ -13,7 +14,11 @@ using std::to_string;
 class HTTPresponse
 {
 private:
-    string response = "";
+    const int max_fragment_size = 8 * (1 << 10);
+    char *fragment = NULL;
+    size_t last_read = 0, remaining = 0;
+    string response;
+    std::ifstream *file = NULL;
 
 public:
     enum class MIME
@@ -34,6 +39,11 @@ public:
     HTTPresponse &data(const char *filename); //use with care, adds whole data from file on heap
     HTTPresponse &file_attachment(string data, MIME type);
     HTTPresponse &file_attachment(const char *filename, MIME type);
+    HTTPresponse &next_file_segment();
+    void begin_file_transfer();
+    bool has_more_segments();
+    size_t segment_size();
+    char *get_file_segment();
     HTTPresponse &cookie(Cookie *cookie);
     const char *to_c_str();
     std::size_t size();

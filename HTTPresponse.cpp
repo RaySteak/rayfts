@@ -1,5 +1,4 @@
 #include "HTTPresponse.h"
-#include <fstream>
 #include <iostream>
 
 HTTPresponse::HTTPresponse(int code)
@@ -90,7 +89,6 @@ HTTPresponse &HTTPresponse::data(const char *filename)
 {
     std::ifstream file(filename, std::ios::binary);
     response += std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
     return *this;
 }
 
@@ -103,15 +101,48 @@ HTTPresponse &HTTPresponse::file_attachment(string data, MIME type)
 
 HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type)
 {
-    std::cout << "Adaugam fisierul...\n";
-    std::ifstream file(filename, std::ios::binary);
-    auto beg = file.tellg();
-    auto size = file.seekg(0, std::ios::end).tellg() - beg;
-
-    content_type(type).content_length(size).end_header().data(filename);
-    file.close();
-    std::cout << "Fisierul a fost adaugat...\n";
+    file = new std::ifstream(filename, std::ios::binary);
+    fragment = new char[max_fragment_size];
+    auto beg = file->tellg();
+    remaining = file->seekg(0, std::ios::end).tellg() - beg;
+    file->seekg(0, std::ios::beg);
+    content_type(type).content_length(remaining).end_header();
     return *this;
+}
+
+HTTPresponse &HTTPresponse::next_file_segment()
+{
+    if (!remaining)
+    {
+        delete file;
+        file = NULL;
+        return *this;
+    }
+    file->read(fragment, max_fragment_size);
+    last_read = file->gcount();
+    remaining -= last_read;
+    //std::cout << "Am mai citit inca " << last_read << "si mai avem " << remaining << '\n';
+    return *this;
+}
+
+void HTTPresponse::begin_file_transfer()
+{
+    next_file_segment();
+}
+
+bool HTTPresponse::has_more_segments()
+{
+    return file != NULL;
+}
+
+size_t HTTPresponse::segment_size()
+{
+    return last_read;
+}
+
+char *HTTPresponse::get_file_segment()
+{
+    return fragment;
 }
 
 HTTPresponse &HTTPresponse::cookie(Cookie *cookie)
