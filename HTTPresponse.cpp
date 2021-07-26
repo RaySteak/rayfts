@@ -103,12 +103,14 @@ HTTPresponse &HTTPresponse::file_attachment(string data, MIME type)
 
 HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type)
 {
+    std::cout << "Adaugam fisierul...\n";
     std::ifstream file(filename, std::ios::binary);
     auto beg = file.tellg();
     auto size = file.seekg(0, std::ios::end).tellg() - beg;
 
     content_type(type).content_length(size).end_header().data(filename);
     file.close();
+    std::cout << "Fisierul a fost adaugat...\n";
     return *this;
 }
 

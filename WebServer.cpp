@@ -320,9 +320,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     char *url = strchr(data, '/');
     char *saved;
     strtok_r(url, " \r\n", &saved);
-    std::cout << "\n\n Ajungem aici \n\n";
     string url_string = parse_url(string(url));
-    std::cout << "\n\n Trecem de asta \n\n";
 
     if (strstr(url, ".."))
         return HTTPresponse(401).file_attachment(string("Incercati sa ma hackati dar in balta va inecati"), HTTPresponse::MIME::text);
