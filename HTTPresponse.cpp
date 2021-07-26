@@ -116,6 +116,8 @@ HTTPresponse &HTTPresponse::next_file_segment()
     {
         delete file;
         file = NULL;
+        delete fragment;
+        fragment = NULL;
         return *this;
     }
     file->read(fragment, max_fragment_size);
