@@ -137,7 +137,7 @@ int WebServer::process_http_header(int fd, char *buffer, int read_size, int head
     FD_ZERO(&wait_set);
     FD_SET(fd, &wait_set);
 
-    int nr = read_size;
+    size_t nr = read_size;
     data = NULL;
     char *content_length = strstr(buffer, "Content-Length: ");
 
@@ -160,7 +160,7 @@ int WebServer::process_http_header(int fd, char *buffer, int read_size, int head
             data = new char[total + 1];
         memcpy(data, buffer, read_size);
 
-        while (remaining || max_alloc - nr > 0)
+        while (remaining && max_alloc - nr > 0)
         {
             timeval wait_time{.tv_sec = timeout_secs, .tv_usec = timeout_micro};
             tmp_wait = wait_set;
@@ -320,7 +320,9 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     char *url = strchr(data, '/');
     char *saved;
     strtok_r(url, " \r\n", &saved);
+    std::cout << "\n\n Ajungem aici \n\n";
     string url_string = parse_url(string(url));
+    std::cout << "\n\n Trecem de asta \n\n";
 
     if (strstr(url, ".."))
         return HTTPresponse(401).file_attachment(string("Incercati sa ma hackati dar in balta va inecati"), HTTPresponse::MIME::text);
@@ -500,16 +502,13 @@ void WebServer::run()
                     size_t total;
                     n = process_http_header(i, buffer, n, header_size, data, total);
                     DIE(n < 0, "process");
-
                     if (n == 0)
                     {
                         close_connection(i);
                         continue;
                     }
 
-                    std::ofstream debug("debug.txt", std::ios::app);
-                    debug << data;
-                    debug.close();
+                    std::cout << data << '\n';
                     HTTPresponse response = process_http_request(data, header_size, n, total);
                     //std::cout << response;
 
