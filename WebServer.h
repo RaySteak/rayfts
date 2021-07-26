@@ -27,12 +27,13 @@ private:
     int send_exactly(int fd, const char *buffer, int count);
     int recv_http_header(int fd, char *buffer, int max, int &header_size);
     void close_connection(int fd);
-    int process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data);
+    int process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, size_t &total);
     void process_cookies();
-    HTTPresponse process_http_request(char *data, int header_size, int total_size);
+    HTTPresponse process_http_request(char *data, int header_size, size_t read_size, size_t total_size);
 
     const int timeout_secs = 0;
     const int timeout_micro = 100000;
+    const size_t max_alloc = 50 * (1 << 20); //50 MB
 
 public:
     enum class Method

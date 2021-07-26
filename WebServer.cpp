@@ -131,7 +131,7 @@ void WebServer::close_connection(int fd)
     }
 }
 
-int WebServer::process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data)
+int WebServer::process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, size_t &total)
 {
     fd_set wait_set, tmp_wait;
     FD_ZERO(&wait_set);
@@ -149,14 +149,18 @@ int WebServer::process_http_header(int fd, char *buffer, int read_size, int head
         while (content_length[digits] >= '0' && content_length[digits] <= '9')
             digits++;
         content_length[digits] = 0;
-        int length = atoi(content_length);
+        size_t length = strtoul(content_length, NULL, 0);
         content_length[digits] = '\r';
-        int content_read = read_size - header_size;
-        int remaining = length - content_read;
-        data = new char[remaining + read_size + 1];
+        size_t content_read = read_size - header_size;
+        size_t remaining = length - content_read;
+        total = remaining + read_size;
+        if (total > max_alloc)
+            data = new char[max_alloc + 1];
+        else
+            data = new char[total + 1];
         memcpy(data, buffer, read_size);
 
-        while (remaining)
+        while (remaining || max_alloc - nr > 0)
         {
             timeval wait_time{.tv_sec = timeout_secs, .tv_usec = timeout_micro};
             tmp_wait = wait_set;
@@ -167,7 +171,7 @@ int WebServer::process_http_header(int fd, char *buffer, int read_size, int head
                 delete data;
                 return 0;
             }
-            int n = recv(fd, data + nr, remaining, 0);
+            int n = recv(fd, data + nr, total > max_alloc ? max_alloc - nr : remaining, 0);
             if (n <= 0)
             {
                 delete data;
@@ -180,6 +184,7 @@ int WebServer::process_http_header(int fd, char *buffer, int read_size, int head
     else
     {
         data = new char[header_size + 1];
+        total = header_size;
         memcpy(data, buffer, header_size);
     }
     data[nr] = 0;
@@ -283,10 +288,30 @@ string generate_folder_html(string path)
     return folder;
 }
 
-HTTPresponse WebServer::process_http_request(char *data, int header_size, int total_size)
+string parse_url(string url)
+{
+    size_t pos = 0;
+    while ((pos = url.find('%', pos)) != string::npos)
+    {
+        if (url.size() - pos <= 2)
+        {
+            url.erase(pos, 1);
+            continue;
+        }
+        std::stringstream character;
+        character.str(url.substr(pos + 1, 2));
+        url.erase(pos, 3);
+        int c;
+        character >> std::hex >> c;
+        url.insert(url.begin() + pos, (char)c);
+    }
+    return url;
+}
+
+HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t read_size, size_t total_size)
 {
     int content_size = total_size - header_size;
-    char *content = data + total_size - content_size;
+    char *content = data + header_size;
     HTTPresponse not_implemented = HTTPresponse(501).file_attachment("html/not_implemented.html", HTTPresponse::MIME::html);
     HTTPresponse not_found = HTTPresponse(404).file_attachment("html/not_found.html", HTTPresponse::MIME::html);
     const string redirect = "Redirecting...";
@@ -295,7 +320,8 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, int to
     char *url = strchr(data, '/');
     char *saved;
     strtok_r(url, " \r\n", &saved);
-    string url_string = url;
+    string url_string = parse_url(string(url));
+
     if (strstr(url, ".."))
         return HTTPresponse(401).file_attachment(string("Incercati sa ma hackati dar in balta va inecati"), HTTPresponse::MIME::text);
     if (!strcmp(url, "/login"))
@@ -373,13 +399,13 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, int to
             return HTTPresponse(200).file_attachment(generate_folder_html(path), HTTPresponse::MIME::html);
         case Method::POST:
         {
-            auto fields = get_content_fields(content);
             if (doesnt_exist)
             {
                 //TODO: check if path to /~delete exists
                 size_t pos = url_string.find("~delete");
                 if (pos != std::string::npos) //check for delete
                 {
+                    auto fields = get_content_fields(content);
                     string remove_path = "files" + url_string.substr(0, pos);
                     std::ifstream check_exists(remove_path, std::ios::binary);
                     if (!check_exists)
@@ -393,6 +419,23 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, int to
             }
             if (!dir.is_directory())
                 return not_implemented;
+
+            data[header_size - 1] = 0;
+            char *content_type = strstr(data, "Content-Type: ");
+            content_type = content_type + strlen("Content-Type: ");
+            strtok_r(content_type, "; \r\n", &saved);
+            if (!strcmp(content_type, "multipart/form-data")) // file upload
+            {
+                char *boundary = strtok_r(NULL, "\r\n", &saved);
+                if (!strncmp(boundary, "boundary=", 9))
+                {
+                    boundary += strlen("boundary=");
+                    string boundary_str = boundary;
+                    //TODO: the rest
+                }
+                return HTTPresponse(400).end_header();
+            }
+            auto fields = get_content_fields(content);
             //TODO: also check here (both existence of folder_name and also succesful directory creation)
             string folder_name = fields["folder_name"];
             // This check is redundant if user operates from browser, because it is also performed
@@ -454,7 +497,8 @@ void WebServer::run()
                     }
 
                     char *data;
-                    n = process_http_header(i, buffer, n, header_size, data);
+                    size_t total;
+                    n = process_http_header(i, buffer, n, header_size, data, total);
                     DIE(n < 0, "process");
 
                     if (n == 0)
@@ -463,8 +507,10 @@ void WebServer::run()
                         continue;
                     }
 
-                    std::cout << data << '\n';
-                    HTTPresponse response = process_http_request(data, header_size, n);
+                    std::ofstream debug("debug.txt", std::ios::app);
+                    debug << data;
+                    debug.close();
+                    HTTPresponse response = process_http_request(data, header_size, n, total);
                     //std::cout << response;
 
                     send_exactly(i, response.to_c_str(), response.size());
