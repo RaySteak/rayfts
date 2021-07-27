@@ -355,6 +355,9 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     }
     else if (!strncmp(url, "/~images/", 9))
     {
+        std::ifstream check(url + 1, std::ios::binary);
+        if (!check.is_open())
+            return not_found;
         return HTTPresponse(200).file_attachment(url + 1, HTTPresponse::MIME::png);
     }
     else if (!strcmp(url, "/favicon.ico"))
@@ -432,7 +435,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     {
                         boundary += strlen("boundary=");
                         string boundary_str = boundary;
-                        //TODO: the rest
+                        std::cout << boundary << '\n';
                     }
                     return HTTPresponse(400).end_header();
                 }
