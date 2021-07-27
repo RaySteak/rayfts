@@ -486,6 +486,7 @@ void WebServer::run()
                 }
                 else if (i == listenfd)
                 {
+                    std::cout << "Conexiune noua\n";
                     newsockfd = accept(listenfd, (sockaddr *)&cli_addr, &socklen);
                     DIE(newsockfd < 0, "accept");
                     FD_SET(newsockfd, &read_fds);
