@@ -87,8 +87,8 @@ HTTPresponse &HTTPresponse::location(string url)
 
 HTTPresponse &HTTPresponse::data(const char *filename)
 {
-    std::ifstream file(filename, std::ios::binary);
-    response += std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    std::ifstream f(filename, std::ios::binary);
+    response += std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
     return *this;
 }
 
@@ -101,11 +101,10 @@ HTTPresponse &HTTPresponse::file_attachment(string data, MIME type)
 
 HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type)
 {
-    file = new std::ifstream(filename, std::ios::binary);
-    fragment = new char[max_fragment_size];
-    auto beg = file->tellg();
-    remaining = file->seekg(0, std::ios::end).tellg() - beg;
-    file->seekg(0, std::ios::beg);
+    filename_str = filename;
+    std::ifstream f(filename, std::ios::binary);
+    auto beg = f.tellg();
+    remaining = f.seekg(0, std::ios::end).tellg() - beg;
     content_type(type).content_length(remaining).end_header();
     return *this;
 }
@@ -129,6 +128,8 @@ HTTPresponse &HTTPresponse::next_file_segment()
 
 void HTTPresponse::begin_file_transfer()
 {
+    file = new std::ifstream(filename_str, std::ios::binary);
+    fragment = new char[max_fragment_size];
     next_file_segment();
 }
 

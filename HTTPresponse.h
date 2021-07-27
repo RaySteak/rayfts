@@ -17,7 +17,7 @@ private:
     const int max_fragment_size = 8 * (1 << 10);
     char *fragment = NULL;
     size_t last_read = 0, remaining = 0;
-    string response;
+    string response, filename_str;
     std::ifstream *file = NULL;
 
 public:
