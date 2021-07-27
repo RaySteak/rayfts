@@ -355,7 +355,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     }
     else if (!strncmp(url, "/~images/", 9))
     {
-        fs::directory_entry check(url);
+        fs::directory_entry check(url + 1);
         if (!check.exists() || check.is_directory())
             return not_found;
         return HTTPresponse(200).file_attachment(url + 1, HTTPresponse::MIME::png);
@@ -515,9 +515,9 @@ void WebServer::run()
                     std::cout << "\nPregatim raspunsul...\n";
                     HTTPresponse response = process_http_request(data, header_size, n, total);
                     std::cout << "Trimitem raspunsul\n";
-                    //std::cout << response;
+                    std::cout << response;
                     send_exactly(i, response.to_c_str(), response.size());
-                    for (response.begin_file_transfer(); response.has_more_segments(); response.next_file_segment())
+                    for (response.begin_file_transfer(); response.has_more_segments(); response.next_file_segment()) //TODO: overload iterator instead of this
                     {
                         //std::cout << "Fragment nou\n";
                         send_exactly(i, response.get_file_segment(), response.segment_size());
