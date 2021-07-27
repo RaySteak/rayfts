@@ -355,8 +355,8 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     }
     else if (!strncmp(url, "/~images/", 9))
     {
-        std::ifstream check(url + 1, std::ios::binary);
-        if (!check.is_open())
+        fs::directory_entry check(url);
+        if (!check.exists() || check.is_directory())
             return not_found;
         return HTTPresponse(200).file_attachment(url + 1, HTTPresponse::MIME::png);
     }
