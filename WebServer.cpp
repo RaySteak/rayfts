@@ -364,6 +364,10 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     {
         return HTTPresponse(200).file_attachment("ico/favicon.ico", HTTPresponse::MIME::icon);
     }
+    else if (!strncmp(url, "/.well-known/pki-validation/", 28))
+    {
+        return HTTPresponse(200).file_attachment(url + 1, HTTPresponse::MIME::text);
+    }
     else
     {
         //TODO: redirect something like "/test" to "/test/" for directory queries
@@ -486,7 +490,6 @@ void WebServer::run()
                 }
                 else if (i == listenfd)
                 {
-                    std::cout << "Conexiune noua\n";
                     newsockfd = accept(listenfd, (sockaddr *)&cli_addr, &socklen);
                     DIE(newsockfd < 0, "accept");
                     FD_SET(newsockfd, &read_fds);
