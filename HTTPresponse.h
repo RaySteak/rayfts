@@ -14,13 +14,10 @@ using std::to_string;
 class HTTPresponse
 {
 private:
-    const int max_fragment_size = 8 * (1 << 10);
-    char *fragment = NULL;
-    size_t last_read = 0, remaining = 0;
-    string response, filename_str;
-    std::ifstream *file = NULL;
+    string response, filename_str = "";
 
 public:
+    static const int PHONY = 0; // means response must be sent later
     enum class MIME
     {
         octet_stream,
@@ -39,11 +36,30 @@ public:
     HTTPresponse &data(const char *filename); //use with care, adds whole data from file on heap
     HTTPresponse &file_attachment(string data, MIME type);
     HTTPresponse &file_attachment(const char *filename, MIME type);
-    HTTPresponse &next_file_segment();
-    void begin_file_transfer();
-    bool has_more_segments();
-    size_t segment_size();
-    char *get_file_segment();
+    class filesegment_iterator
+    {
+    private:
+        struct data
+        {
+            size_t size = 0;
+            char *fragment = NULL;
+        } file_data;
+        size_t max_fragment_size;
+        size_t remaining = 0;
+        std::ifstream *file = NULL;
+        HTTPresponse *parent;
+
+    public:
+        filesegment_iterator(HTTPresponse *parent, size_t max_fragment_size);
+        filesegment_iterator(filesegment_iterator &&f);
+        ~filesegment_iterator();
+        bool has_next();
+        filesegment_iterator &operator++(int);
+        data *operator->();
+    };
+    filesegment_iterator begin_file_transfer(size_t fragment_size = 8 * (1 << 10));
+    bool is_multifragment_transfer();
+    bool is_phony();
     HTTPresponse &cookie(Cookie *cookie);
     const char *to_c_str();
     std::size_t size();

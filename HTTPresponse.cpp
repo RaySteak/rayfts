@@ -3,6 +3,9 @@
 
 HTTPresponse::HTTPresponse(int code)
 {
+    if (code == PHONY)
+        return;
+
     response += "HTTP/1.1 ";
     response += to_string(code) + " ";
 
@@ -25,6 +28,9 @@ HTTPresponse::HTTPresponse(int code)
         break;
     case 404:
         response += "Not Found";
+        break;
+    case 422:
+        response += "Unprocessable Entity";
         break;
     case 501:
         response += "Not Implemented";
@@ -102,50 +108,85 @@ HTTPresponse &HTTPresponse::file_attachment(string data, MIME type)
 HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type)
 {
     filename_str = filename;
-    std::ifstream f(filename, std::ios::binary);
-    auto beg = f.tellg();
-    remaining = f.seekg(0, std::ios::end).tellg() - beg;
-    content_type(type).content_length(remaining).end_header();
+    std::ifstream file(filename_str, std::ios::binary);
+    auto beg = file.tellg();
+    size_t total = file.seekg(0, std::ios::end).tellg() - beg;
+    content_type(type).content_length(total).end_header();
     return *this;
 }
 
-HTTPresponse &HTTPresponse::next_file_segment()
+HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, size_t max_fragment_size)
+{
+    this->max_fragment_size = max_fragment_size;
+    this->parent = parent;
+    file = new std::ifstream(parent->filename_str, std::ios::binary);
+    auto beg = file->tellg();
+    remaining = file->seekg(0, std::ios::end).tellg() - beg;
+    file->seekg(0, std::ios::beg);
+    file_data.fragment = new char[max_fragment_size];
+    (*this)++;
+}
+
+HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse::filesegment_iterator &&f)
+{
+    this->file = f.file;
+    f.file = NULL;
+    this->file_data = f.file_data;
+    f.file_data.fragment = NULL;
+    f.file_data.size = 0;
+    this->max_fragment_size = f.max_fragment_size;
+    this->parent = f.parent;
+    this->remaining = f.remaining;
+}
+
+HTTPresponse::filesegment_iterator::~filesegment_iterator()
+{
+    if (file)
+    {
+        delete file;
+        delete file_data.fragment;
+    }
+}
+
+HTTPresponse::filesegment_iterator &HTTPresponse::filesegment_iterator::operator++(int)
 {
     if (!remaining)
     {
         delete file;
         file = NULL;
-        delete fragment;
-        fragment = NULL;
+        delete file_data.fragment;
+        file_data.fragment = NULL;
         return *this;
     }
-    file->read(fragment, max_fragment_size);
-    last_read = file->gcount();
-    remaining -= last_read;
-    //std::cout << "Am mai citit inca " << last_read << "si mai avem " << remaining << '\n';
+    file->read(file_data.fragment, max_fragment_size);
+    file_data.size = file->gcount();
+    remaining -= file_data.size;
     return *this;
 }
 
-void HTTPresponse::begin_file_transfer()
+HTTPresponse::filesegment_iterator::data *HTTPresponse::filesegment_iterator::operator->()
 {
-    file = new std::ifstream(filename_str, std::ios::binary);
-    fragment = new char[max_fragment_size];
-    next_file_segment();
+    return &file_data;
 }
 
-bool HTTPresponse::has_more_segments()
+HTTPresponse::filesegment_iterator HTTPresponse::begin_file_transfer(size_t fragment_size)
+{
+    return filesegment_iterator(this, fragment_size);
+}
+
+bool HTTPresponse::filesegment_iterator::has_next()
 {
     return file != NULL;
 }
 
-size_t HTTPresponse::segment_size()
+bool HTTPresponse::is_multifragment_transfer()
 {
-    return last_read;
+    return filename_str != "";
 }
 
-char *HTTPresponse::get_file_segment()
+bool HTTPresponse::is_phony()
 {
-    return fragment;
+    return response == "";
 }
 
 HTTPresponse &HTTPresponse::cookie(Cookie *cookie)

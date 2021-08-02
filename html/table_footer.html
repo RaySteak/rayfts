@@ -13,16 +13,26 @@
     <div class="gap-20" id="error"></div>
 </form>
 <form method="post" enctype="multipart/form-data">
-    <input type="file" id="myFile" name="filename">
-    <input type="submit" value="Submit file">
+    <input type="file" id="file1" name="filename" onchange="uploadFile()">
+    <br>
+    <progress id="progressBar" value="0" max="100" style="width:400px;"></progress>
+    <p id="uploaded_text"></p>
 </form>
 </body>
 <script>
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function _(el) {
+        return document.getElementById(el);
+    }
+
     function check() {
-        var folder_name = document.getElementById("folder_name").value;
+        var folder_name = _("folder_name").value;
         var not_allowed = ["&", "/", "%", "~", "..", "="];
-        var create_button = document.getElementById("create_folder_button");
-        var error_message = document.getElementById("error");
+        var create_button = _("create_folder_button");
+        var error_message = _("error");
         if (folder_name.length > 255) {
             error_message.innerHTML = "Names must not be longer than 255 characters";
             create_button.disabled = true;
@@ -35,5 +45,49 @@
         }
         error_message.innerHTML = "";
         create_button.disabled = false;
+
+    }
+
+    async function done_uploading() {
+        _("uploaded_text").innerHTML = "File uploaded, refreshing in 3";
+        await sleep(1000);
+        _("uploaded_text").innerHTML = "File uploaded, refreshing in 2";
+        await sleep(1000);
+        _("uploaded_text").innerHTML = "File uploaded, refreshing in 1";
+        await sleep(1000);
+        location.reload();
+    }
+
+    function uploadFile() {
+        var fd = new FormData();
+        fd.append('file', _("file1").files[0]);
+        $.ajax({
+            xhr: function () {
+                var xhr = new window.XMLHttpRequest();
+
+                xhr.upload.addEventListener("progress", function (evt) {
+                    if (evt.lengthComputable) {
+                        var percentComplete = evt.loaded / evt.total;
+                        percentComplete = parseInt(percentComplete * 100);
+                        console.log(percentComplete);
+                        _("progressBar").value = percentComplete;
+                        _("uploaded_text").innerHTML = percentComplete + "%";
+                        if (percentComplete === 100) {
+                        }
+
+                    }
+                }, false);
+
+                return xhr;
+            },
+            url: "#",
+            type: "POST",
+            data: fd,
+            processData: false,
+            contentType: false,
+            success: function (result) {
+                done_uploading().then();
+            }
+        });
     }
 </script>

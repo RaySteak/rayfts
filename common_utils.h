@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <linux/tcp.h>
+#include <signal.h>
 
 #define DIE(assertion, call_description)                       \
     do                                                         \

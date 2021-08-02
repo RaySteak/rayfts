@@ -11,6 +11,56 @@ using std::vector;
 class WebServer
 {
 private:
+    struct file_receive_data
+    {
+        static const int receive_wait_micro = 50000;
+        string filename, boundary;
+        std::ofstream *file = NULL;
+        char *data[2] = {NULL, NULL};
+        size_t remaining, last_recv, prev_recv = 0;
+        int current_buffer = 0;
+        file_receive_data(string filename, string boundary, char *read_data, size_t read_size, size_t remaining)
+            : filename(filename), boundary(boundary), remaining(remaining)
+        {
+            file = new std::ofstream(filename, std::ios::binary);
+            data[0] = new char[WebServer::max_alloc];
+            data[1] = new char[WebServer::max_alloc];
+            memcpy(data[0], read_data, read_size);
+            last_recv = read_size;
+        }
+        file_receive_data(file_receive_data &&f)
+        {
+            this->file = f.file;
+            f.file = NULL;
+            this->filename = f.filename;
+            this->boundary = f.boundary;
+            f.filename = "";
+            this->data[0] = f.data[0];
+            this->data[1] = f.data[1];
+            f.data[0] = NULL;
+            f.data[1] = NULL;
+            this->remaining = f.remaining;
+            this->last_recv = f.last_recv;
+            this->prev_recv = f.prev_recv;
+            this->current_buffer = f.current_buffer;
+        }
+        ~file_receive_data()
+        {
+            if (file)
+            {
+                delete file;
+                delete data[0];
+                delete data[1];
+            }
+        }
+        char *get_next_buffer()
+        {
+            current_buffer = (current_buffer + 1) & 0b1;
+            char *toret = data[current_buffer];
+            return toret;
+        }
+    };
+
     string user, pass;
     int listenfd, newsockfd, port;
     char buffer[BUFLEN + 1];
@@ -24,16 +74,22 @@ private:
 
     unordered_map<string, Cookie *> cookies;
 
-    int send_exactly(int fd, const char *buffer, int count);
+    unordered_map<int, HTTPresponse::filesegment_iterator> unsent_files;
+    unordered_map<int, file_receive_data> unreceived_files;
+
+    int send_exactly(int fd, const char *buffer, size_t count);
+    int recv_exactly(int fd, char *buffer, size_t count, timeval t);
     int recv_http_header(int fd, char *buffer, int max, int &header_size);
-    void close_connection(int fd);
+    void close_connection(int fd, bool erase_from_sets);
     int process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, size_t &total);
     void process_cookies();
-    HTTPresponse process_http_request(char *data, int header_size, size_t read_size, size_t total_size);
+    void remove_from_read(int fd);
+    void add_to_read(int fd);
+    HTTPresponse process_http_request(char *data, int header_size, size_t read_size, size_t total_size, int fd);
 
     const int timeout_secs = 0;
     const int timeout_micro = 100000;
-    const size_t max_alloc = 50 * (1 << 20); //50 MB
+    static const size_t max_alloc = 16 * (1 << 10); // used for receive size
 
 public:
     enum class Method
