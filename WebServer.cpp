@@ -325,24 +325,30 @@ string generate_folder_html(string path)
     return folder;
 }
 
-string parse_url(string url)
+string parse_webstring(string name)
 {
     size_t pos = 0;
-    while ((pos = url.find('%', pos)) != string::npos)
+    while ((pos = name.find('+', pos)) != string::npos)
     {
-        if (url.size() - pos <= 2)
+        name[pos] = ' ';
+    }
+    pos = 0;
+    while ((pos = name.find('%', pos)) != string::npos)
+    {
+        if (name.size() - pos <= 2)
         {
-            url.erase(pos, 1);
+            name.erase(pos, 1);
             continue;
         }
         std::stringstream character;
-        character.str(url.substr(pos + 1, 2));
-        url.erase(pos, 3);
+        character.str(name.substr(pos + 1, 2));
+        name.erase(pos, 3);
         int c;
         character >> std::hex >> c;
-        url.insert(url.begin() + pos, (char)c);
+        name.insert(name.begin() + pos, (char)c);
     }
-    return url;
+    pos = 0;
+    return name;
 }
 
 bool check_name(string name)
@@ -369,7 +375,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     char *url = strchr(data, '/');
     char *saved;
     strtok_r(url, " \r\n", &saved);
-    string url_string = parse_url(string(url));
+    string url_string = parse_webstring(string(url));
     data[header_size - 1] = 0;
     strtok_r(NULL, "\r\n", &saved);
     auto http_fields = get_content_fields(saved, ": ", CRLF);
@@ -470,7 +476,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                         return not_found;
                     check_exists.close();
                     for (auto &field : fields)
-                        fs::remove_all(remove_path + field.first);
+                        fs::remove_all(remove_path + parse_webstring(field.first));
                     return HTTPresponse(303).location(url_string.substr(0, pos)).file_attachment(redirect, HTTPresponse::MIME::text);
                 }
                 return not_found;
