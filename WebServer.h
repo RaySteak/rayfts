@@ -87,8 +87,7 @@ private:
     void add_to_read(int fd);
     HTTPresponse process_http_request(char *data, int header_size, size_t read_size, size_t total_size, int fd);
 
-    const int timeout_secs = 0;
-    const int timeout_micro = 100000;
+    const int timeout_milli = 100;
     static const size_t max_alloc = 16 * (1 << 10); // used for receive size
 
 public:

@@ -117,7 +117,7 @@ HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type)
 
 HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, size_t max_fragment_size)
 {
-    this->max_fragment_size = max_fragment_size;
+    this->max_fragment_size = send_fragment_size = max_fragment_size;
     this->parent = parent;
     file = new std::ifstream(parent->filename_str, std::ios::binary);
     auto beg = file->tellg();
@@ -135,6 +135,7 @@ HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse::filesegme
     f.file_data.fragment = NULL;
     f.file_data.size = 0;
     this->max_fragment_size = f.max_fragment_size;
+    this->send_fragment_size = f.send_fragment_size;
     this->parent = f.parent;
     this->remaining = f.remaining;
 }
@@ -158,7 +159,7 @@ HTTPresponse::filesegment_iterator &HTTPresponse::filesegment_iterator::operator
         file_data.fragment = NULL;
         return *this;
     }
-    file->read(file_data.fragment, max_fragment_size);
+    file->read(file_data.fragment, send_fragment_size);
     file_data.size = file->gcount();
     remaining -= file_data.size;
     return *this;
@@ -178,6 +179,17 @@ bool HTTPresponse::filesegment_iterator::has_next()
 {
     return file != NULL;
 }
+
+/*void HTTPresponse::filesegment_iterator::update_fragment_size(uint64_t waited_microsecs)
+{
+    // time it takes to send max fragment size with a speed of 10MBps
+    const double desired_wait_time = (double)max_fragment_size / 10e6;
+    double current_speed = ((double)send_fragment_size / waited_microsecs);
+    std::cout << "Viteza este " << current_speed << "MBps\n";
+    size_t calculated_size = current_speed * desired_wait_time * 10e6;
+    send_fragment_size = (send_fragment_size + (calculated_size > max_fragment_size ? max_fragment_size : calculated_size)) / 2;
+    std::cout << "Noul fragment are " << send_fragment_size << '\n';
+}*/
 
 bool HTTPresponse::is_multifragment_transfer()
 {

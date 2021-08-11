@@ -18,6 +18,7 @@ private:
 
 public:
     static const int PHONY = 0; // means response must be sent later
+
     enum class MIME
     {
         octet_stream,
@@ -44,7 +45,7 @@ public:
             size_t size = 0;
             char *fragment = NULL;
         } file_data;
-        size_t max_fragment_size;
+        size_t max_fragment_size, send_fragment_size;
         size_t remaining = 0;
         std::ifstream *file = NULL;
         HTTPresponse *parent;
@@ -54,10 +55,11 @@ public:
         filesegment_iterator(filesegment_iterator &&f);
         ~filesegment_iterator();
         bool has_next();
+        //void update_fragment_size(uint64_t waited_nanosecs);
         filesegment_iterator &operator++(int);
         data *operator->();
     };
-    filesegment_iterator begin_file_transfer(size_t fragment_size = 8 * (1 << 10));
+    filesegment_iterator begin_file_transfer(size_t fragment_size = 8 * (1 << 10) /* 8KB */);
     bool is_multifragment_transfer();
     bool is_phony();
     HTTPresponse &cookie(Cookie *cookie);

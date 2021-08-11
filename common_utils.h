@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <linux/tcp.h>
 #include <signal.h>
+#include <poll.h>
 
 #define DIE(assertion, call_description)                       \
     do                                                         \

@@ -24,8 +24,12 @@ WebServer::WebServer(int port, const char *user, const char *pass)
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
     int option = 1;
-    ret = setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0;
-    DIE(ret < 0, "setsockopt");
+    ret = setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
+    DIE(ret < 0, "reuse_addr");
+
+    /*option = 1;
+    ret = setsockopt(listenfd, IPPROTO_TCP, TCP_NODELAY, &option, sizeof(int));
+    DIE(ret < 0, "no_delay");*/
 
     ret = bind(listenfd, (sockaddr *)&serv_addr, sizeof(sockaddr));
     DIE(ret < 0, "bind");
@@ -43,7 +47,9 @@ int WebServer::send_exactly(int fd, const char *buffer, size_t count)
     int nr = 0;
     while (count)
     {
+        //std::cout << "Sending more...\n";
         int n = send(fd, buffer + nr, count, 0);
+        //std::cout << "Am mai trimis inca " << n << '\n';
         if (n < 0)
             return n;
         nr += n;
@@ -85,20 +91,15 @@ WebServer::Method get_method(char *data)
 
 int WebServer::recv_http_header(int fd, char *buffer, int max, int &header_size)
 {
-    fd_set wait_set, tmp_wait;
-    FD_ZERO(&wait_set);
-    FD_SET(fd, &wait_set);
-
     int nr = 0;
     char *terminator = NULL;
 
     while (nr < max)
     {
-        timeval wait_time{.tv_sec = timeout_secs, .tv_usec = timeout_micro};
-        tmp_wait = wait_set;
-        ret = select(fd + 1, &tmp_wait, NULL, NULL, &wait_time);
-        DIE(ret < 0, "select");
-        if (!FD_ISSET(fd, &tmp_wait))
+        pollfd pfd{.fd = fd, .events = POLLIN, .revents = 0};
+        ret = poll(&pfd, 1, timeout_milli);
+        DIE(ret < 0, "poll");
+        if (!(pfd.revents & POLLIN))
             return 0;
         int n = recv(fd, buffer + nr, max - nr, 0);
         if (n <= 0)
@@ -152,10 +153,6 @@ void WebServer::close_connection(int fd, bool erase_from_sets)
 
 int WebServer::process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, size_t &total)
 {
-    fd_set wait_set, tmp_wait;
-    FD_ZERO(&wait_set);
-    FD_SET(fd, &wait_set);
-
     size_t nr = read_size;
     data = NULL;
     char *content_length = strstr(buffer, "Content-Length: ");
@@ -181,11 +178,10 @@ int WebServer::process_http_header(int fd, char *buffer, int read_size, int head
 
         while (remaining && max_alloc - nr > 0)
         {
-            timeval wait_time{.tv_sec = timeout_secs, .tv_usec = timeout_micro};
-            tmp_wait = wait_set;
-            ret = select(fd + 1, &tmp_wait, NULL, NULL, &wait_time);
-            DIE(ret < 0, "select");
-            if (!FD_ISSET(fd, &tmp_wait))
+            pollfd pfd{.fd = fd, .events = POLLIN, .revents = 0};
+            ret = poll(&pfd, 1, timeout_milli);
+            DIE(ret < 0, "poll");
+            if (!(pfd.revents & POLLIN))
             {
                 delete data;
                 return 0;
@@ -365,7 +361,6 @@ bool check_name(string name)
 
 HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t read_size, size_t total_size, int fd)
 {
-    int content_size = total_size - header_size;
     char *content = data + header_size;
     HTTPresponse not_implemented = HTTPresponse(501).file_attachment("html/not_implemented.html", HTTPresponse::MIME::html);
     HTTPresponse not_found = HTTPresponse(404).file_attachment("html/not_found.html", HTTPresponse::MIME::html);
@@ -568,6 +563,15 @@ void WebServer::run()
         // send files
         for (auto map_iterator = unsent_files.begin(); map_iterator != unsent_files.end();)
         {
+            pollfd pfd{.fd = map_iterator->first, .events = POLLOUT, .revents = 0};
+            ret = poll(&pfd, 1, 0);
+            DIE(ret < 0, "poll");
+            if (!(pfd.revents & POLLOUT))
+            {
+                map_iterator++;
+                std::cout << "Continuam ca nu mai putem trimite\n";
+                continue;
+            }
             n = send_exactly(map_iterator->first, map_iterator->second->fragment, map_iterator->second->size);
             if (n < 0)
             {
@@ -648,6 +652,9 @@ void WebServer::run()
                     {
                         newsockfd = accept(listenfd, (sockaddr *)&cli_addr, &socklen);
                         DIE(newsockfd < 0, "accept");
+                        /*int option = 1;
+                        ret = setsockopt(newsockfd, IPPROTO_TCP, TCP_NODELAY, &option, sizeof(int));
+                        DIE(ret < 0, "no_delay");*/
                         FD_SET(newsockfd, &read_fds);
                         fdmax = newsockfd > fdmax ? newsockfd : fdmax;
                     }
