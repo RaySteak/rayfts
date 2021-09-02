@@ -4,6 +4,9 @@
 #include "SessionCookie.h"
 #include <unordered_map>
 #include <vector>
+#include <future>
+#include <functional>
+#define SERVER_DEBUG 1
 
 using std::unordered_map;
 using std::vector;
@@ -13,7 +16,6 @@ class WebServer
 private:
     struct file_receive_data
     {
-        static const int receive_wait_micro = 50000;
         string filename, boundary;
         std::ofstream *file = NULL;
         char *data[2] = {NULL, NULL};
@@ -44,6 +46,7 @@ private:
             this->prev_recv = f.prev_recv;
             this->current_buffer = f.current_buffer;
         }
+        file_receive_data(const file_receive_data &f) = default;
         ~file_receive_data()
         {
             if (file)
@@ -73,10 +76,12 @@ private:
     int fdmax;       // max val of read_fds
 
     unordered_map<string, Cookie *> cookies;
+    unordered_map<int, std::pair<std::future<int>, HTTPresponse>> file_futures;
 
     unordered_map<int, HTTPresponse::filesegment_iterator> unsent_files;
     unordered_map<int, file_receive_data> unreceived_files;
 
+    inline void init_server_params(int port, const char *user, const char *path);
     int send_exactly(int fd, const char *buffer, size_t count);
     int recv_exactly(int fd, char *buffer, size_t count, timeval t);
     int recv_http_header(int fd, char *buffer, int max, int &header_size);
@@ -87,8 +92,21 @@ private:
     void add_to_read(int fd);
     HTTPresponse process_http_request(char *data, int header_size, size_t read_size, size_t total_size, int fd);
 
+    // int zip_folder(char *destination, char *path)
+    // zips folder located at path/name and places it in destination
+    // this function uses /bin/7z by default for ease of implementation,
+    // it can be replaced by any function by using the 4-parameter constructor
+    // this function must free the memory of the two parameters
+    std::function<int(char *, char *)> zip_folder;
+
     const int timeout_milli = 100;
     static const size_t max_alloc = 16 * (1 << 10); // used for receive size
+
+#ifdef SERVER_DEBUG
+    const bool debug_mode = 1;
+#else
+    const bool debug_mode = 0;
+#endif
 
 public:
     enum class Method
@@ -104,6 +122,7 @@ public:
     };
 
     WebServer(int port, const char *user, const char *path);
+    WebServer(int port, const char *user, const char *path, std::function<int(char *, char *)> zip_folder);
+    virtual ~WebServer();
     void run();
-    ~WebServer();
 };

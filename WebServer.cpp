@@ -2,13 +2,17 @@
 #include <algorithm>
 #include <filesystem>
 #include <set>
+#include <spawn.h>
+#include <wait.h>
 
+using std::async;
+using std::make_pair;
 using std::set;
 using std::unordered_map;
 
 namespace fs = std::filesystem;
 
-WebServer::WebServer(int port, const char *user, const char *pass)
+void WebServer::init_server_params(int port, const char *user, const char *pass)
 {
     this->user = user;
     this->pass = pass;
@@ -23,14 +27,12 @@ WebServer::WebServer(int port, const char *user, const char *pass)
     serv_addr.sin_port = htons(port);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
-    int option = 1;
-    ret = setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
-    DIE(ret < 0, "reuse_addr");
-
-    /*option = 1;
-    ret = setsockopt(listenfd, IPPROTO_TCP, TCP_NODELAY, &option, sizeof(int));
-    DIE(ret < 0, "no_delay");*/
-
+    if (debug_mode)
+    {
+        int option = 1;
+        ret = setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
+        DIE(ret < 0, "reuse_addr");
+    }
     ret = bind(listenfd, (sockaddr *)&serv_addr, sizeof(sockaddr));
     DIE(ret < 0, "bind");
 
@@ -42,14 +44,41 @@ WebServer::WebServer(int port, const char *user, const char *pass)
     FD_SET(STDIN_FILENO, &read_fds); // stdin for exit command
 }
 
+WebServer::WebServer(int port, const char *user, const char *pass)
+{
+    init_server_params(port, user, pass);
+
+    // default zip_folder function
+    zip_folder = [](char *destination, char *path)
+    {
+        pid_t pid;
+        int status;
+        char argv1[] = "/bin/7z", argv2[] = "a";
+        char *const argv[] = {argv1, argv2, destination, path, NULL};
+        status = posix_spawn(&pid, argv1, NULL, NULL, argv, NULL);
+        free(destination), free(path);
+        if (status)
+            return -1;
+        waitpid(pid, &status, 0);
+        if (WIFEXITED(status))
+            return WEXITSTATUS(status);
+        return -1;
+    };
+}
+
+WebServer::WebServer(int port, const char *user, const char *pass, std::function<int(char *destination, char *user)> zip_folder)
+{
+    init_server_params(port, user, pass);
+
+    this->zip_folder = zip_folder;
+}
+
 int WebServer::send_exactly(int fd, const char *buffer, size_t count)
 {
     int nr = 0;
     while (count)
     {
-        //std::cout << "Sending more...\n";
         int n = send(fd, buffer + nr, count, 0);
-        //std::cout << "Am mai trimis inca " << n << '\n';
         if (n < 0)
             return n;
         nr += n;
@@ -134,6 +163,12 @@ void WebServer::close_connection(int fd, bool erase_from_sets)
 {
     if (erase_from_sets)
     {
+        auto found_it = file_futures.find(fd);
+        if (found_it != file_futures.end())
+        {
+            fs::remove(found_it->second.second.get_filename());
+            file_futures.erase(found_it);
+        }
         unsent_files.erase(fd);
         unreceived_files.erase(fd);
     }
@@ -278,13 +313,20 @@ string human_readable(unsigned int size)
     return to_string(size) + suffix;
 }
 
+inline string add_image(string image)
+{
+    return "<img src=\"/~images/" + image + "\" height=\"20\" width=\"20\">";
+}
+
 inline string add_table_image(string image)
 {
-    return "<td><img src=\"/~images/" + image + "\" height=\"20\" width=\"20\"></td>";
+    return "<td>" + add_image(image) + "</td>";
 }
 
 string generate_folder_html(string path)
 {
+    //TODO: resize PNGs used for this to smaller resolutions
+    const int max_name_length = 30;
     auto cmp = [](fs::directory_entry a, fs::directory_entry b)
     { return a.path().filename().string() < b.path().filename().string(); };
     set<fs::directory_entry, decltype(cmp)> entries(cmp);
@@ -297,18 +339,22 @@ string generate_folder_html(string path)
     for (auto &file : entries)
     {
         folder += "<tr style=\"background-color:#" + (i % 2 ? string("FFFFFF") : string("808080")) + "\">";
-        string size, filename = file.path().filename().string();
+        string size, filename = file.path().filename().string(), short_filename = filename.substr(0, max_name_length) + (filename.length() > max_name_length ? " ...  " : "  ");
+        constexpr char tdbeg[] = "<td><a href=\"";
+        constexpr char tdend[] = "</a></td>";
+        string title = "title=\"" + filename + "\">";
         if (!file.is_directory())
         {
             size = human_readable(file.file_size());
             folder += add_table_image("file.png");
-            folder += "<td><a href=\"" + filename + "\">" + filename + "</a>";
+            folder += tdbeg + filename + "\"" + title + short_filename + tdend;
         }
         else
         {
             size = "-";
             folder += add_table_image("folder.png");
-            folder += "<td><a href=\"" + filename + "/\">" + filename + "</a>";
+            folder += tdbeg + filename + "/\"" + title + short_filename +
+                      "</a><a href=\"" + filename + "/~archive\">" + add_image("download.png") + tdend;
         }
         folder += "<td>" + size + "</td>";
         folder += "<td><input type=\"checkbox\" name=\"" + filename + "\"></td> ";
@@ -317,7 +363,6 @@ string generate_folder_html(string path)
     }
     std::ifstream footer("html/table_footer.html", std::ios::binary);
     folder += std::string((std::istreambuf_iterator<char>(footer)), std::istreambuf_iterator<char>());
-    footer.close();
     return folder;
 }
 
@@ -359,11 +404,26 @@ bool check_name(string name)
     return true;
 }
 
+string get_action_and_truncate(string &url) // returns empty string on fail
+{
+    size_t pos = url.find("~");
+    if (pos != std::string::npos) //check for delete
+    {
+        string action = url.substr(pos + 1);
+        url = url.substr(0, pos);
+        std::ifstream check_exists("files" + url, std::ios::binary);
+        if (!check_exists)
+            return "";
+        return action;
+    }
+    return "";
+}
+
 HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t read_size, size_t total_size, int fd)
 {
     char *content = data + header_size;
-    HTTPresponse not_implemented = HTTPresponse(501).file_attachment("html/not_implemented.html", HTTPresponse::MIME::html);
-    HTTPresponse not_found = HTTPresponse(404).file_attachment("html/not_found.html", HTTPresponse::MIME::html);
+    auto not_implemented = HTTPresponse(501).file_attachment("html/not_implemented.html", HTTPresponse::MIME::html);
+    auto not_found = HTTPresponse(404).file_attachment("html/not_found.html", HTTPresponse::MIME::html);
     const string redirect = "Redirecting...";
 
     Method method = get_method(data);
@@ -452,7 +512,28 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         {
         case Method::GET:
             if (doesnt_exist)
+            {
+                string action = get_action_and_truncate(url_string);
+                if (action == "archive")
+                {
+                    //TODO: find an elegant way to kill any process created by zip_folder ran in async, as they still run when connection is closed
+                    //what's weird is that the file gets removed succesfully but /bin/7z doesn't seem to notice it's writing into the void??
+                    size_t delim = url_string.find_last_of('/', url_string.length() - 2);
+                    string folder_name = url_string.substr(delim + 1, url_string.size() - delim - 2);
+                    string filename = "temp/TEMP", path = "./files" + url_string.substr(0, url_string.size() - 1);
+                    auto it = fs::directory_iterator("temp/");
+                    int nr = std::count_if(fs::begin(it), fs::end(it), [](fs::directory_entry e)
+                                           { return e.is_regular_file(); });
+                    filename = filename + to_string(nr + 1) + ".zip";
+                    if (!fs::directory_entry("temp").exists())
+                        fs::create_directory("temp");
+                    //TODO: with current code, filename gets copied twice, solve that
+                    auto response = HTTPresponse(200).content_disposition(HTTPresponse::DISP::Attachment, folder_name + ".zip").file_promise(filename.c_str());
+                    file_futures.insert({fd, make_pair(async(std::launch::async, zip_folder, strdup(filename.c_str()), strdup(path.c_str())), response)});
+                    return response;
+                }
                 return not_found;
+            }
             if (!dir.is_directory())
                 return HTTPresponse(200).file_attachment(path.c_str(), HTTPresponse::MIME::octet_stream);
             return HTTPresponse(200).file_attachment(generate_folder_html(path), HTTPresponse::MIME::html);
@@ -461,23 +542,19 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             if (doesnt_exist)
             {
                 //TODO: check if path to /~delete exists
-                size_t pos = url_string.find("~delete");
-                if (pos != std::string::npos) //check for delete
+                string action = get_action_and_truncate(url_string);
+                if (action == "delete")
                 {
                     auto fields = get_content_fields(content, "=", "&");
-                    string remove_path = "files" + url_string.substr(0, pos);
-                    std::ifstream check_exists(remove_path, std::ios::binary);
-                    if (!check_exists)
-                        return not_found;
-                    check_exists.close();
                     for (auto &field : fields)
-                        fs::remove_all(remove_path + parse_webstring(field.first));
-                    return HTTPresponse(303).location(url_string.substr(0, pos)).file_attachment(redirect, HTTPresponse::MIME::text);
+                        fs::remove_all("files" + url_string + parse_webstring(field.first));
+                    return HTTPresponse(303).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
                 }
                 return not_found;
             }
             if (!dir.is_directory())
                 return not_implemented;
+
             string content_type = http_fields["Content-Type"];
             if (content_type != "")
             {
@@ -549,17 +626,36 @@ void WebServer::run()
     while (1)
     {
         tmp_fds = read_fds;
-        if (unsent_files.size() == 0 && unreceived_files.size() == 0)
+        int available_requests;
+        if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)
         {
-            ret = select(fdmax + 1, &tmp_fds, NULL, NULL, NULL);
+            available_requests = select(fdmax + 1, &tmp_fds, NULL, NULL, NULL);
         }
         else
         {
             timeval zero_time{.tv_sec = 0, .tv_usec = 0};
-            ret = select(fdmax + 1, &tmp_fds, NULL, NULL, &zero_time);
+            available_requests = select(fdmax + 1, &tmp_fds, NULL, NULL, &zero_time);
         }
-        DIE(ret < 0, "select");
+        DIE(available_requests < 0, "select");
 
+        // check available future files
+        for (auto map_iterator = file_futures.begin(); map_iterator != file_futures.end();)
+        {
+            if (map_iterator->second.first.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+            {
+                // TODO: use return value of future and also the other double filename copy thingy
+                // maybe create a method for when the filename is already set, called attach_file
+                // TODO: is it worth it sending part of response immediately and the rest later?
+                auto &response = map_iterator->second.second;
+                response.file_attachment(response.get_filename().c_str(), HTTPresponse::MIME::zip, [](const char *filename)
+                                         { fs::remove(filename); });
+                send_exactly(map_iterator->first, response.to_c_str(), response.size());
+                unsent_files.insert({map_iterator->first, response.begin_file_transfer()});
+                map_iterator = file_futures.erase(map_iterator);
+                continue;
+            }
+            map_iterator++;
+        }
         // send files
         for (auto map_iterator = unsent_files.begin(); map_iterator != unsent_files.end();)
         {
@@ -569,7 +665,6 @@ void WebServer::run()
             if (!(pfd.revents & POLLOUT))
             {
                 map_iterator++;
-                std::cout << "Continuam ca nu mai putem trimite\n";
                 continue;
             }
             n = send_exactly(map_iterator->first, map_iterator->second->fragment, map_iterator->second->size);
@@ -633,7 +728,7 @@ void WebServer::run()
             map_iterator++;
         }
 
-        if (ret != 0)
+        if (available_requests != 0)
         {
             process_cookies();
             for (i = 0; i <= fdmax; i++)
@@ -685,9 +780,12 @@ void WebServer::run()
                         //std::cout << response
                         if (response.is_phony())
                             continue;
-                        send_exactly(i, response.to_c_str(), response.size());
-                        if (response.is_multifragment_transfer())
-                            unsent_files.insert({i, response.begin_file_transfer()});
+                        if (!response.is_promise_transfer())
+                        {
+                            send_exactly(i, response.to_c_str(), response.size());
+                            if (response.is_multifragment_transfer())
+                                unsent_files.insert({i, response.begin_file_transfer()});
+                        }
                         std::cout << "Am trimis raspunsul\n";
 
                         delete data;
@@ -710,4 +808,6 @@ WebServer::~WebServer()
             DIE(ret < 0, "close");
         }
     }
+    for (auto &[id, c] : cookies)
+        delete c;
 }

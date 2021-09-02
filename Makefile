@@ -3,7 +3,7 @@
 CC = g++
 CFLAGS = -Wall -Wextra -std=c++17 -c
 LDFLAGS = -Wall -Wextra -std=c++17
-LDLIBS = -lstdc++fs
+LDLIBS = -lstdc++fs -lpthread
 HEADERS = common_utils.h WebServer.h HTTPresponse.h Cookie.h SessionCookie.h
 
 all: server

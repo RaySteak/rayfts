@@ -78,6 +78,28 @@ HTTPresponse &HTTPresponse::content_type(MIME type)
         break;
     case MIME::icon:
         response += "image/x-icon";
+        break;
+    case MIME::zip:
+        response += "application/zip";
+        break;
+    default:
+        break;
+    }
+    response += CRLF;
+    return *this;
+}
+
+HTTPresponse &HTTPresponse::content_disposition(DISP disposition, string filename)
+{
+    response += "Content-Disposition: ";
+    switch (disposition)
+    {
+    case DISP::Attachment:
+        response += "attachment; filename=\"" + filename + "\"";
+        break;
+    case DISP::Inline:
+        response += "inline";
+        break;
     default:
         break;
     }
@@ -98,6 +120,13 @@ HTTPresponse &HTTPresponse::data(const char *filename)
     return *this;
 }
 
+HTTPresponse &HTTPresponse::file_promise(const char *filename)
+{
+    filename_str = filename;
+    is_promise = true;
+    return *this;
+}
+
 HTTPresponse &HTTPresponse::file_attachment(string data, MIME type)
 {
     content_type(type).content_length(data.length()).end_header();
@@ -107,19 +136,28 @@ HTTPresponse &HTTPresponse::file_attachment(string data, MIME type)
 
 HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type)
 {
-    filename_str = filename;
-    std::ifstream file(filename_str, std::ios::binary);
+    this->filename_str = filename;
+    std::ifstream file(filename, std::ios::binary);
     auto beg = file.tellg();
     size_t total = file.seekg(0, std::ios::end).tellg() - beg;
     content_type(type).content_length(total).end_header();
     return *this;
 }
 
+HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type, std::function<void(const char *)> action)
+{
+    file_action = action;
+    this->is_promise = is_promise;
+    file_attachment(filename, type);
+    return *this;
+}
+
 HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, size_t max_fragment_size)
 {
     this->max_fragment_size = send_fragment_size = max_fragment_size;
-    this->parent = parent;
     file = new std::ifstream(parent->filename_str, std::ios::binary);
+    filename = parent->filename_str;
+    action = parent->file_action;
     auto beg = file->tellg();
     remaining = file->seekg(0, std::ios::end).tellg() - beg;
     file->seekg(0, std::ios::beg);
@@ -130,13 +168,14 @@ HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, s
 HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse::filesegment_iterator &&f)
 {
     this->file = f.file;
+    this->action = f.action;
     f.file = NULL;
+    this->filename = f.filename;
     this->file_data = f.file_data;
     f.file_data.fragment = NULL;
     f.file_data.size = 0;
     this->max_fragment_size = f.max_fragment_size;
     this->send_fragment_size = f.send_fragment_size;
-    this->parent = f.parent;
     this->remaining = f.remaining;
 }
 
@@ -146,6 +185,8 @@ HTTPresponse::filesegment_iterator::~filesegment_iterator()
     {
         delete file;
         delete file_data.fragment;
+        if (action)
+            action(filename.c_str());
     }
 }
 
@@ -153,10 +194,7 @@ HTTPresponse::filesegment_iterator &HTTPresponse::filesegment_iterator::operator
 {
     if (!remaining)
     {
-        delete file;
-        file = NULL;
-        delete file_data.fragment;
-        file_data.fragment = NULL;
+        file_data.size = 0;
         return *this;
     }
     file->read(file_data.fragment, send_fragment_size);
@@ -175,25 +213,24 @@ HTTPresponse::filesegment_iterator HTTPresponse::begin_file_transfer(size_t frag
     return filesegment_iterator(this, fragment_size);
 }
 
-bool HTTPresponse::filesegment_iterator::has_next()
+string HTTPresponse::get_filename()
 {
-    return file != NULL;
+    return filename_str;
 }
 
-/*void HTTPresponse::filesegment_iterator::update_fragment_size(uint64_t waited_microsecs)
+bool HTTPresponse::filesegment_iterator::has_next()
 {
-    // time it takes to send max fragment size with a speed of 10MBps
-    const double desired_wait_time = (double)max_fragment_size / 10e6;
-    double current_speed = ((double)send_fragment_size / waited_microsecs);
-    std::cout << "Viteza este " << current_speed << "MBps\n";
-    size_t calculated_size = current_speed * desired_wait_time * 10e6;
-    send_fragment_size = (send_fragment_size + (calculated_size > max_fragment_size ? max_fragment_size : calculated_size)) / 2;
-    std::cout << "Noul fragment are " << send_fragment_size << '\n';
-}*/
+    return file_data.size != 0;
+}
 
 bool HTTPresponse::is_multifragment_transfer()
 {
     return filename_str != "";
+}
+
+bool HTTPresponse::is_promise_transfer()
+{
+    return is_promise;
 }
 
 bool HTTPresponse::is_phony()
