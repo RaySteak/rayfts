@@ -1,8 +1,8 @@
 .PHONY: all clean run_server
 
 CC = g++
-CFLAGS = -Wall -Wextra -std=c++17 -c
-LDFLAGS = -Wall -Wextra -std=c++17
+CFLAGS = -Wall -Wextra -std=c++17 -O3 -c
+LDFLAGS = -Wall -Wextra -std=c++17 -O3
 LDLIBS = -lstdc++fs -lpthread
 HEADERS = common_utils.h WebServer.h HTTPresponse.h Cookie.h SessionCookie.h
 

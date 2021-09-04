@@ -737,7 +737,8 @@ void WebServer::run()
                 {
                     if (i == STDIN_FILENO)
                     {
-                        fgets(buffer, BUFLEN, stdin);
+                        if (!fgets(buffer, BUFLEN, stdin))
+                            break;
                         if (!strncmp(buffer, "exit", 4))
                             break;
                         else
