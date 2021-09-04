@@ -521,12 +521,12 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     size_t delim = url_string.find_last_of('/', url_string.length() - 2);
                     string folder_name = url_string.substr(delim + 1, url_string.size() - delim - 2);
                     string filename = "temp/TEMP", path = "./files" + url_string.substr(0, url_string.size() - 1);
+                    if (!fs::directory_entry("temp").exists())
+                        fs::create_directory("temp");
                     auto it = fs::directory_iterator("temp/");
                     int nr = std::count_if(fs::begin(it), fs::end(it), [](fs::directory_entry e)
                                            { return e.is_regular_file(); });
                     filename = filename + to_string(nr + 1) + ".zip";
-                    if (!fs::directory_entry("temp").exists())
-                        fs::create_directory("temp");
                     //TODO: with current code, filename gets copied twice, solve that
                     auto response = HTTPresponse(200).content_disposition(HTTPresponse::DISP::Attachment, folder_name + ".zip").file_promise(filename.c_str());
                     file_futures.insert({fd, make_pair(async(std::launch::async, zip_folder, strdup(filename.c_str()), strdup(path.c_str())), response)});
