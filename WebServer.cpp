@@ -375,7 +375,8 @@ string parse_webstring(string name)
     pos = 0;
     while ((pos = name.find('%', pos)) != string::npos)
     {
-        if (name.size() - pos <= 2 || !strchr(hex_digits, name[pos + 1]) || !strchr(hex_digits, name[pos + 2]))
+        char c1 = name[pos + 1], c2 = name[pos + 2];
+        if (name.size() - pos <= 2 || !strchr(hex_digits, c1) || !strchr(hex_digits, c2) || (c1 == '0' && c2 == '0'))
         {
             pos++;
             continue;
