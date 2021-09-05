@@ -368,17 +368,16 @@ string generate_folder_html(string path)
 
 string parse_webstring(string name)
 {
+    const char hex_digits[] = "0123456789abcdef";
     size_t pos = 0;
     while ((pos = name.find('+', pos)) != string::npos)
-    {
         name[pos] = ' ';
-    }
     pos = 0;
     while ((pos = name.find('%', pos)) != string::npos)
     {
-        if (name.size() - pos <= 2)
+        if (name.size() - pos <= 2 || !strchr(hex_digits, name[pos + 1]) || !strchr(hex_digits, name[pos + 2]))
         {
-            name.erase(pos, 1);
+            pos++;
             continue;
         }
         std::stringstream character;
@@ -508,7 +507,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         bool doesnt_exist = !dir.exists(); // file opens for both folders and files
         if (!doesnt_exist)
         {
-            file.close();
             if (dir.is_directory() && url_string[url_string.length() - 1] != '/')
                 return HTTPresponse(303).location(url_string + "/").file_attachment(redirect, HTTPresponse::MIME::text);
         }
@@ -782,7 +780,7 @@ void WebServer::run()
                         std::cout << "Pregatim raspunsul...\n";
                         HTTPresponse response = process_http_request(data, header_size, n, total, i);
                         std::cout << "Trimitem raspunsul\n";
-                        //std::cout << response
+                        //std::cout << response;
                         if (response.is_phony())
                             continue;
                         if (!response.is_promise_transfer())
