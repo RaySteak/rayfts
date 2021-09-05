@@ -487,14 +487,19 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         //TODO: redirect something like "/test" to "/test/" for directory queries
         HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
         string cookie = http_fields["Cookie"];
-        if (cookie == "")
+        if (cookie == "") // no cookie
             return login_page;
         //TODO: also check the other cookies
-        size_t eq = cookie.find("=");
-        if (eq == string::npos)
-            return HTTPresponse(400).end_header();
-        string cookie_val = cookie.substr(eq + 1, cookie.length() - eq - 1);
-        if (cookies.find(cookie_val) == cookies.end())
+        char *cookie_copy = strdup(cookie.c_str());
+        auto cookie_map = get_content_fields(cookie_copy, "=", ";");
+        delete cookie_copy;
+        bool found_login_cookie = false;
+        for (auto &[name, val] : cookie_map)
+        {
+            if (name == "sessionId" && cookies.find(val) != cookies.end())
+                found_login_cookie = true;
+        }
+        if (!found_login_cookie)
             return login_page;
 
         string path = "files" + url_string;
@@ -741,8 +746,7 @@ void WebServer::run()
                             break;
                         if (!strncmp(buffer, "exit", 4))
                             break;
-                        else
-                            fprintf(stderr, "Command not recognized!\n");
+                        fprintf(stderr, "Command not recognized!\n");
                     }
                     else if (i == listenfd)
                     {
