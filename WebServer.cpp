@@ -503,7 +503,15 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             return login_page;
 
         string path = "files" + url_string;
-        auto dir = fs::directory_entry(path);
+        fs::directory_entry dir;
+        try
+        {
+            dir = fs::directory_entry(path);
+        }
+        catch (const std::exception &e)
+        {
+            return HTTPresponse(422).file_attachment(string("422 Unprocessable entity"), HTTPresponse::MIME::text);
+        }
         std::ifstream file(path, std::ios::binary);
         bool doesnt_exist = !dir.exists(); // file opens for both folders and files
         if (!doesnt_exist)
