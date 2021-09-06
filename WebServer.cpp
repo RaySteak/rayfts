@@ -362,12 +362,15 @@ string generate_folder_html(string path)
     return folder;
 }
 
-string parse_webstring(string name)
+string parse_webstring(string name, bool replace_plus)
 {
     const char hex_digits[] = "0123456789ABCDEF";
     size_t pos = 0;
-    while ((pos = name.find('+', pos)) != string::npos)
-        name[pos] = ' ';
+    if (replace_plus)
+    {
+        while ((pos = name.find('+', pos)) != string::npos)
+            name[pos] = ' ';
+    }
     pos = 0;
     while ((pos = name.find('%', pos)) != string::npos)
     {
@@ -426,7 +429,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     char *url = strchr(data, '/');
     char *saved;
     strtok_r(url, " \r\n", &saved);
-    string url_string = parse_webstring(string(url));
+    string url_string = parse_webstring(string(url), false);
     data[header_size - 1] = 0;
     strtok_r(NULL, "\r\n", &saved);
     auto http_fields = get_content_fields(saved, ": ", CRLF);
@@ -555,7 +558,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 {
                     auto fields = get_content_fields(content, "=", "&");
                     for (auto &field : fields)
-                        fs::remove_all("files" + url_string + parse_webstring(field.first));
+                        fs::remove_all("files" + url_string + parse_webstring(field.first, true));
                     return HTTPresponse(303).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
                 }
                 return not_found;
@@ -614,7 +617,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             }
             auto fields = get_content_fields(content, "=", "&");
             //TODO: also check here (both existence of folder_name and also succesful directory creation)
-            string folder_name = parse_webstring(fields["folder_name"]);
+            string folder_name = parse_webstring(fields["folder_name"], true);
             // This check is redundant if user operates from browser, because it is also performed
             // in the javascript of the site but requests might not come from browsers
             if (!check_name(folder_name))
