@@ -364,7 +364,7 @@ string generate_folder_html(string path)
 
 string parse_webstring(string name)
 {
-    const char hex_digits[] = "0123456789abcdef";
+    const char hex_digits[] = "0123456789ABCDEF";
     size_t pos = 0;
     while ((pos = name.find('+', pos)) != string::npos)
         name[pos] = ' ';
@@ -614,7 +614,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             }
             auto fields = get_content_fields(content, "=", "&");
             //TODO: also check here (both existence of folder_name and also succesful directory creation)
-            string folder_name = fields["folder_name"];
+            string folder_name = parse_webstring(fields["folder_name"]);
             // This check is redundant if user operates from browser, because it is also performed
             // in the javascript of the site but requests might not come from browsers
             if (!check_name(folder_name))
