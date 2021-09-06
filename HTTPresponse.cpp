@@ -139,7 +139,7 @@ HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type)
     this->filename_str = filename;
     std::ifstream file(filename, std::ios::binary);
     auto beg = file.tellg();
-    size_t total = file.seekg(0, std::ios::end).tellg() - beg;
+    uint64_t total = file.seekg(0, std::ios::end).tellg() - beg;
     content_type(type).content_length(total).end_header();
     return *this;
 }

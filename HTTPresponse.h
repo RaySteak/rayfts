@@ -60,7 +60,7 @@ public:
             char *fragment = NULL;
         } file_data;
         size_t max_fragment_size, send_fragment_size;
-        size_t remaining = 0;
+        uint64_t remaining = 0;
         string filename;
         std::ifstream *file = NULL;
         std::function<void(const char *)> action;

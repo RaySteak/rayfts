@@ -187,7 +187,7 @@ void WebServer::close_connection(int fd, bool erase_from_sets)
     }
 }
 
-int WebServer::process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, size_t &total)
+int WebServer::process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, uint64_t &total)
 {
     size_t nr = read_size;
     data = NULL;
@@ -201,10 +201,10 @@ int WebServer::process_http_header(int fd, char *buffer, int read_size, int head
         while (content_length[digits] >= '0' && content_length[digits] <= '9')
             digits++;
         content_length[digits] = 0;
-        size_t length = strtoul(content_length, NULL, 0);
+        uint64_t length = strtoull(content_length, NULL, 0);
         content_length[digits] = '\r';
-        size_t content_read = read_size - header_size;
-        size_t remaining = length - content_read;
+        uint64_t content_read = read_size - header_size;
+        uint64_t remaining = length - content_read;
         total = remaining + read_size;
         if (total > max_alloc)
             data = new char[max_alloc + 1];
@@ -296,22 +296,13 @@ void WebServer::add_to_read(int fd)
 
 string human_readable(uint64_t size)
 {
-    string suffix;
+    if (size >= 1LL << 30)
+        return to_string(double(size) / (1LL << 30)) + "GB";
     if (size >= 1 << 20)
-    {
-        suffix = "MB";
-        size /= (1 << 20);
-    }
-    else if (size >= 1 << 10)
-    {
-        suffix = "KB";
-        size /= (1 << 10);
-    }
-    else
-    {
-        suffix = "B";
-    }
-    return to_string(size) + suffix;
+        return to_string(size / (1 << 20)) + "MB";
+    if (size >= 1 << 10)
+        return to_string(size / (1 << 10)) + "KB";
+    return to_string(size) + "B";
 }
 
 inline string add_image(string image)
@@ -420,7 +411,7 @@ string get_action_and_truncate(string &url) // returns empty string on fail
     return "";
 }
 
-HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t read_size, size_t total_size, int fd)
+HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t read_size, uint64_t total_size, int fd)
 {
     char *content = data + header_size;
     auto not_implemented = HTTPresponse(501).file_attachment("html/not_implemented.html", HTTPresponse::MIME::html);
@@ -706,7 +697,7 @@ void WebServer::run()
                 add_to_read(map_iterator->first);
                 char *current_buffer = f.data[f.current_buffer];
                 char *prev_buffer = f.get_next_buffer();
-                size_t size = f.file->tellp(), bs = f.boundary.size();
+                uint64_t size = f.file->tellp(), bs = f.boundary.size();
                 char temp_buffer[2 * max_alloc];
                 memcpy(temp_buffer + (max_alloc - f.prev_recv), prev_buffer, f.prev_recv);
                 memcpy(temp_buffer + max_alloc, current_buffer, f.last_recv);
@@ -777,7 +768,7 @@ void WebServer::run()
                         }
 
                         char *data;
-                        size_t total;
+                        uint64_t total;
                         n = process_http_header(i, buffer, n, header_size, data, total);
                         DIE(n < 0, "process");
                         if (n == 0)

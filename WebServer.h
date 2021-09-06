@@ -19,9 +19,10 @@ private:
         string filename, boundary;
         std::ofstream *file = NULL;
         char *data[2] = {NULL, NULL};
-        size_t remaining, last_recv, prev_recv = 0;
+        uint64_t remaining;
+        size_t last_recv, prev_recv = 0;
         int current_buffer = 0;
-        file_receive_data(string filename, string boundary, char *read_data, size_t read_size, size_t remaining)
+        file_receive_data(string filename, string boundary, char *read_data, size_t read_size, uint64_t remaining)
             : filename(filename), boundary(boundary), remaining(remaining)
         {
             file = new std::ofstream(filename, std::ios::binary);
@@ -86,11 +87,11 @@ private:
     int recv_exactly(int fd, char *buffer, size_t count, timeval t);
     int recv_http_header(int fd, char *buffer, int max, int &header_size);
     void close_connection(int fd, bool erase_from_sets);
-    int process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, size_t &total);
+    int process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, uint64_t &total);
     void process_cookies();
     void remove_from_read(int fd);
     void add_to_read(int fd);
-    HTTPresponse process_http_request(char *data, int header_size, size_t read_size, size_t total_size, int fd);
+    HTTPresponse process_http_request(char *data, int header_size, size_t read_size, uint64_t total_size, int fd);
 
     // int zip_folder(char *destination, char *path)
     // zips folder located at path/name and places it in destination
