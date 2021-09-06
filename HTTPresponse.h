@@ -41,7 +41,7 @@ public:
 
     HTTPresponse(int code);
     HTTPresponse &end_header();
-    HTTPresponse &content_length(unsigned int length);
+    HTTPresponse &content_length(uint64_t length);
     HTTPresponse &content_type(MIME type);
     HTTPresponse &content_disposition(DISP disposition, string filename = "");
     HTTPresponse &location(string url);

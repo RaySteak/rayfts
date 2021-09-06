@@ -48,7 +48,7 @@ HTTPresponse &HTTPresponse::end_header()
     return *this;
 }
 
-HTTPresponse &HTTPresponse::content_length(unsigned int length)
+HTTPresponse &HTTPresponse::content_length(uint64_t length)
 {
     response += "Content-Length: ";
     response += to_string(length);
