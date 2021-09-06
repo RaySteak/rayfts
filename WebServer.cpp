@@ -299,7 +299,7 @@ string human_readable(uint64_t size)
     if (size >= 1LL << 30)
     {
         double real_size = double(size) / (1LL << 30);
-        int hr_size = int(real_size * 100) / 100;
+        int hr_size = int(real_size * 100);
         return to_string(hr_size / 100) + "." + to_string(hr_size % 100) + "GB";
     }
     if (size >= 1 << 20)
