@@ -1,17 +1,17 @@
 #include "WebServer.h"
 #include <algorithm>
-#include <filesystem>
 #include <set>
 #include <spawn.h>
 #include <wait.h>
-#include <sys/stat.h>
+#include <sstream>
+#include <boost/filesystem.hpp>
 
 using std::async;
 using std::make_pair;
 using std::set;
 using std::unordered_map;
 
-namespace fs = std::filesystem;
+namespace fs = boost::filesystem;
 
 void WebServer::init_server_params(int port, const char *user, const char *pass)
 {
@@ -344,11 +344,9 @@ string generate_folder_html(string path)
         constexpr char tdbeg[] = "<td><a href=\"";
         constexpr char tdend[] = "</a></td>";
         string title = "title=\"" + filename + "\">";
-        if (!file.is_directory())
+        if (!fs::is_directory(file))
         {
-            struct stat st;
-            stat(file.path().c_str(), &st);
-            size = human_readable(st.st_size);
+            size = human_readable(fs::file_size(file));
             folder += add_table_image("file.png");
             folder += tdbeg + filename + "\"" + title + short_filename + tdend;
         }
@@ -473,7 +471,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     else if (!strncmp(url, "/~images/", 9))
     {
         fs::directory_entry check(url + 1);
-        if (!check.exists() || check.is_directory())
+        if (!fs::exists(check) || fs::is_directory(check))
             return not_found;
         return HTTPresponse(200).file_attachment(url + 1, HTTPresponse::MIME::png);
     }
@@ -516,10 +514,10 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             return HTTPresponse(422).file_attachment(string("422 Unprocessable entity"), HTTPresponse::MIME::text);
         }
         std::ifstream file(path, std::ios::binary);
-        bool doesnt_exist = !dir.exists(); // file opens for both folders and files
+        bool doesnt_exist = !fs::exists(dir); // file opens for both folders and files
         if (!doesnt_exist)
         {
-            if (dir.is_directory() && url_string[url_string.length() - 1] != '/')
+            if (fs::is_directory(dir) && url_string[url_string.length() - 1] != '/')
                 return HTTPresponse(303).location(url_string + "/").file_attachment(redirect, HTTPresponse::MIME::text);
         }
 
@@ -536,11 +534,11 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     size_t delim = url_string.find_last_of('/', url_string.length() - 2);
                     string folder_name = url_string.substr(delim + 1, url_string.size() - delim - 2);
                     string filename = "temp/TEMP", path = "./files" + url_string.substr(0, url_string.size() - 1);
-                    if (!fs::directory_entry("temp").exists())
+                    if (!fs::exists(fs::directory_entry("temp")))
                         fs::create_directory("temp");
                     auto it = fs::directory_iterator("temp/");
                     int nr = std::count_if(fs::begin(it), fs::end(it), [](fs::directory_entry e)
-                                           { return e.is_regular_file(); });
+                                           { return fs::is_regular_file(e); });
                     filename = filename + to_string(nr + 1) + ".zip";
                     //TODO: with current code, filename gets copied twice, solve that
                     auto response = HTTPresponse(200).content_disposition(HTTPresponse::DISP::Attachment, folder_name + ".zip").file_promise(filename.c_str());
@@ -549,7 +547,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 }
                 return not_found;
             }
-            if (!dir.is_directory())
+            if (!fs::is_directory(dir))
                 return HTTPresponse(200).file_attachment(path.c_str(), HTTPresponse::MIME::octet_stream);
             return HTTPresponse(200).file_attachment(generate_folder_html(path), HTTPresponse::MIME::html);
         case Method::POST:
@@ -567,7 +565,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 }
                 return not_found;
             }
-            if (!dir.is_directory())
+            if (!fs::is_directory(dir))
                 return not_implemented;
 
             string content_type = http_fields["Content-Type"];
