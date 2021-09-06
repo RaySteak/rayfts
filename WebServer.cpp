@@ -297,7 +297,11 @@ void WebServer::add_to_read(int fd)
 string human_readable(uint64_t size)
 {
     if (size >= 1LL << 30)
-        return to_string(int((double(size) / (1LL << 30)) * 100) / 100.0) + "GB";
+    {
+        double real_size = double(size) / (1LL << 30);
+        int hr_size = int(real_size * 100) / 100;
+        return to_string(hr_size / 100) + "." + to_string(hr_size % 100) + "GB";
+    }
     if (size >= 1 << 20)
         return to_string(size / (1 << 20)) + "MB";
     if (size >= 1 << 10)
