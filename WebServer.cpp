@@ -4,6 +4,7 @@
 #include <set>
 #include <spawn.h>
 #include <wait.h>
+#include <sys/stat.h>
 
 using std::async;
 using std::make_pair;
@@ -293,7 +294,7 @@ void WebServer::add_to_read(int fd)
     fdmax = fd > fdmax ? fd : fdmax;
 }
 
-string human_readable(unsigned int size)
+string human_readable(uint64_t size)
 {
     string suffix;
     if (size >= 1 << 20)
@@ -345,7 +346,9 @@ string generate_folder_html(string path)
         string title = "title=\"" + filename + "\">";
         if (!file.is_directory())
         {
-            size = human_readable(file.file_size());
+            struct stat st;
+            stat(file.path().c_str(), &st);
+            size = human_readable(st.st_size);
             folder += add_table_image("file.png");
             folder += tdbeg + filename + "\"" + title + short_filename + tdend;
         }
