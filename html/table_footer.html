@@ -19,6 +19,7 @@
     <progress id="progressBar" value="0" max="100" style="width:400px;"></progress>
     <p id="uploaded_text"></p>
 </form>
+<div class="chart" id="available_space_graph"></div>
 </body>
 <script>
     function sleep(ms) {
@@ -92,7 +93,7 @@
         });
     }
 
-    function downloadFolder(filename) {
+    function downloadFolder(filename) { // TODO: turn this into a percentage check
         $.ajax({
             xhr: function () {
                 var xhr = new XMLHttpRequest();
@@ -124,5 +125,61 @@
                 $("body").remove(a);
             }
         });
+    }
+
+    window.onload = function () {
+        var used = Number(_("used_space").innerHTML);
+        var available = Number(_('free_space').innerHTML);
+        _("free_space").remove();
+        _("used_space").remove();
+        var el = _('available_space_graph');
+        var options = {
+            percent: used / available * 100,
+            size: el.getAttribute('data-size') || 220,
+            lineWidth: el.getAttribute('data-line') || 15,
+            rotate: el.getAttribute('data-rotate') || 0
+        }
+        var canvas = document.createElement('canvas');
+        el.appendChild(document.createElement('br'));
+        el.appendChild(document.createElement('br'));
+        el.appendChild(document.createElement('br'));
+        var span = document.createElement('span');
+        span.textContent = Math.round((used / Math.pow(2, 30)) * 10) / 10 + " / " + Math.round(available / Math.pow(2, 30));
+        if (typeof (G_vmlCanvasManager) !== 'undefined') {
+            G_vmlCanvasManager.initElement(canvas);
+        }
+        var ctx = canvas.getContext('2d');
+        canvas.width = canvas.height = options.size;
+        el.appendChild(span);
+        //
+        var empty_span = document.createElement('span');
+        el.appendChild(empty_span);
+        var span2 = document.createElement('span');
+        span2.textContent = "GB used";
+        el.appendChild(span2);
+        //
+        el.appendChild(canvas);
+        ctx.translate(options.size / 2, options.size / 2);
+        ctx.rotate((-1 / 2 + options.rotate / 180) * Math.PI);
+        var radius = (options.size - options.lineWidth) / 2;
+        var drawDoubleCircle = function (bg_color, fg_color, lineWidth, bg_percent, fg_percent, current) {
+            ctx.clearRect(-options.size / 2, -options.size / 2, options.size, options.size);
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, Math.PI * 2 * current / bg_percent, false);
+            ctx.strokeStyle = bg_color;
+            ctx.lineCap = 'round';
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+            ctx.strokeStyle = fg_color;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, Math.PI * 2 * current / bg_percent * fg_percent / 100, false);
+            ctx.stroke();
+            if (current < bg_percent) {
+                requestAnimationFrame(function () {
+                    drawDoubleCircle(bg_color, fg_color, lineWidth, bg_percent, fg_percent, current + 1);
+                });
+            }
+        };
+        drawDoubleCircle('#efefef', '#555555', options.lineWidth, 100, options.percent, 0);
     }
 </script>

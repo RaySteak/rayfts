@@ -360,7 +360,7 @@ string generate_folder_html(string path)
     std::ifstream footer("html/table_footer.html", std::ios::binary);
     folder += std::string((std::istreambuf_iterator<char>(footer)), std::istreambuf_iterator<char>());
     auto stat = fs::space("files/");
-    folder += "<p>" + human_readable(stat.free) + +" available, " + human_readable(stat.capacity - stat.free) + " used</p>";
+    folder += "<p hidden id=free_space>" + to_string(stat.free) + "</p><p hidden id=used_space>" + to_string(stat.capacity - stat.free) + "</p>";
     return folder;
 }
 

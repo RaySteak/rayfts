@@ -22,13 +22,31 @@
             padding-top: 20px;
         }
 
-        .myBtn {
-            background: url("/~images/download.png") no-repeat;
-            cursor: pointer;
-            border: none;
-            width: 20px;
-            height: 20px;
-            display: inline;
+        .chart {
+            transition: 1s;
+            position: relative;
+            margin: 80px;
+            width: 220px;
+            height: 220px;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        span {
+            color: #555;
+            display: block;
+            line-height: 40px;
+            text-align: center;
+            width: 220px;
+            font-family: sans-serif;
+            font-size: 30px;
+            font-weight: 100;
+            margin-left: 5px;
         }
     </style>
     <base href="#">
