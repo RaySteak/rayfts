@@ -54,9 +54,9 @@ WebServer::WebServer(int port, const char *user, const char *pass)
     {
         pid_t pid;
         int status;
-        char argv1[] = "/bin/7z", argv2[] = "a";
-        char *const argv[] = {argv1, argv2, destination, path, NULL};
-        status = posix_spawn(&pid, argv1, NULL, NULL, argv, NULL);
+        char argv0[] = "/bin/7z", argv1[] = "a", argv4[] = "-mx0";
+        char *const argv[] = {argv0, argv1, destination, path, argv4, NULL};
+        status = posix_spawn(&pid, argv0, NULL, NULL, argv, NULL);
         free(destination), free(path);
         if (status)
             return -1;
