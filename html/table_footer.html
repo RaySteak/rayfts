@@ -151,13 +151,9 @@
         var ctx = canvas.getContext('2d');
         canvas.width = canvas.height = options.size;
         el.appendChild(span);
-        //
-        var empty_span = document.createElement('span');
-        el.appendChild(empty_span);
         var span2 = document.createElement('span');
         span2.textContent = "GB used";
         el.appendChild(span2);
-        //
         el.appendChild(canvas);
         ctx.translate(options.size / 2, options.size / 2);
         ctx.rotate((-1 / 2 + options.rotate / 180) * Math.PI);
