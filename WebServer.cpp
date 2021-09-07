@@ -359,6 +359,8 @@ string generate_folder_html(string path)
     }
     std::ifstream footer("html/table_footer.html", std::ios::binary);
     folder += std::string((std::istreambuf_iterator<char>(footer)), std::istreambuf_iterator<char>());
+    auto stat = fs::space("files/");
+    folder += "<p>" + human_readable(stat.free) + +" available, " + human_readable(stat.capacity - stat.free) + " used</p>";
     return folder;
 }
 
@@ -446,18 +448,15 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         case Method::POST:
         {
             auto fields = get_content_fields(content, "=", "&");
-            //TODO: verifications for empty fields or no user or pass fields.
-            //TODO: implement remember after cookies are implemented
+            //TODO: implement remember
             string username, password, remember;
             username = fields["user"];
             password = fields["psw"];
             remember = fields["remember"];
             if (username == user && password == pass)
             {
-                //TODO: maybe check if an ip already generated a cookie
                 SessionCookie *cookie = new SessionCookie();
                 cookies.insert({cookie->val(), cookie});
-
                 return HTTPresponse(302).cookie(cookie).location("/").file_attachment(redirect, HTTPresponse::MIME::text);
             }
             return HTTPresponse(401).file_attachment("html/login_error.html", HTTPresponse::MIME::html);
@@ -486,17 +485,19 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         //TODO: redirect something like "/test" to "/test/" for directory queries
         HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
         string cookie = http_fields["Cookie"];
-        if (cookie == "") // no cookie
-            return login_page;
-        //TODO: also check the other cookies
         char *cookie_copy = strdup(cookie.c_str());
         auto cookie_map = get_content_fields(cookie_copy, "=", ";");
         delete cookie_copy;
         bool found_login_cookie = false;
         for (auto &[name, val] : cookie_map)
         {
-            if (name == "sessionId" && cookies.find(val) != cookies.end())
+            auto found_cookie = cookies.find(val);
+            if (name == "sessionId" && found_cookie != cookies.end())
+            {
+                found_cookie->second->renew();
                 found_login_cookie = true;
+                break;
+            }
         }
         if (!found_login_cookie)
             return login_page;

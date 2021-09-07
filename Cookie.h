@@ -22,6 +22,7 @@ public:
     virtual bool is_expired() = 0;
     virtual void over() = 0;
     virtual void update() = 0;
+    virtual void renew() = 0;
     virtual string identifier() = 0;
     virtual string expiry();
     string val();

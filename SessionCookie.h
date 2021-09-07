@@ -12,8 +12,9 @@ private:
 public:
     bool is_expired();
     void over();
+    void update();
+    void renew();
     string identifier();
 
     SessionCookie();
-    void update();
 };
