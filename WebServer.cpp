@@ -474,7 +474,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         {
         case Method::OPTIONS:
             return HTTPresponse(200).access_control("*").file_attachment(string("Te las boss sa te uiti numa"), HTTPresponse::MIME::text);
-        case Method::GET:
+        case Method::POST:
         {
             fs::directory_entry check(url + 1);
             if (!fs::exists(check) || fs::is_directory(check))
