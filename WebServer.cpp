@@ -311,7 +311,7 @@ string human_readable(uint64_t size)
 
 inline string add_image(string image)
 {
-    return "<img src=\"/~images/" + image + "\" height=\"20\" width=\"20\">";
+    return "<img src=\"/~images/" + image + "\" height=\"20\" width=\"20\" alt=\"N/A\">";
 }
 
 inline string add_table_image(string image)
@@ -343,14 +343,16 @@ string generate_folder_html(string path)
         {
             size = human_readable(fs::file_size(file));
             folder += add_table_image("file.png");
-            folder += tdbeg + filename + "\"" + title + short_filename + tdend;
+            folder += tdbeg + filename + "\" " + title + short_filename + tdend;
         }
         else
         {
             size = "-";
             folder += add_table_image("folder.png");
-            folder += tdbeg + filename + "/\"" + title + short_filename +
-                      "</a><a href=\"" + filename + "/~archive\">" + add_image("download.png") + tdend;
+            string id = "archive" + to_string(i);
+            folder += tdbeg + filename + "/\" " + title + short_filename +
+                      "</a><a href=\"" + filename + "/~archive\" id=\"" + id + "\" onclick=\"zipCheck('" + id + "')\">" +
+                      add_image("download.png") + tdend;
         }
         folder += "<td>" + size + "</td>";
         folder += "<td><input type=\"checkbox\" name=\"" + filename + "\"></td> ";
@@ -361,6 +363,7 @@ string generate_folder_html(string path)
     folder += std::string((std::istreambuf_iterator<char>(footer)), std::istreambuf_iterator<char>());
     auto stat = fs::space("files/");
     folder += "<p hidden id=free_space>" + to_string(stat.free) + "</p><p hidden id=used_space>" + to_string(stat.capacity - stat.free) + "</p>";
+    folder += "</body></html>";
     return folder;
 }
 
@@ -467,10 +470,20 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     }
     else if (!strncmp(url, "/~images/", 9))
     {
-        fs::directory_entry check(url + 1);
-        if (!fs::exists(check) || fs::is_directory(check))
-            return not_found;
-        return HTTPresponse(200).file_attachment(url + 1, HTTPresponse::MIME::png);
+        switch (method)
+        {
+        case Method::OPTIONS:
+            return HTTPresponse(200).access_control("*").file_attachment(string("Te las boss sa te uiti numa"), HTTPresponse::MIME::text);
+        case Method::GET:
+        {
+            fs::directory_entry check(url + 1);
+            if (!fs::exists(check) || fs::is_directory(check))
+                return not_found;
+            return HTTPresponse(200).file_attachment(url + 1, HTTPresponse::MIME::png);
+        }
+        default:
+            return not_implemented;
+        }
     }
     else if (!strcmp(url, "/favicon.ico"))
     {

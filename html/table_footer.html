@@ -20,8 +20,9 @@
     <p id="uploaded_text"></p>
 </form>
 <div class="chart" id="available_space_graph"></div>
-</body>
 <script>
+    document.title = window.location.host + window.location.pathname;
+
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -93,8 +94,17 @@
         });
     }
 
-    function downloadFolder(filename) { // TODO: turn this into a percentage check
-        $.ajax({
+    async function zipCheck(temp_filename) { // TODO: turn this into a percentage check
+        var canvas = document.createElement('canvas');
+        var td = document.createElement('td');
+        td.appendChild(canvas);
+        _(temp_filename).replaceWith(td);
+        var ctx = canvas.getContext('2d');
+        canvas.width = canvas.height = 20;
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, 0, Math.PI, false);
+        ctx.stroke();
+        /*$.ajax({
             xhr: function () {
                 var xhr = new XMLHttpRequest();
                 xhr.onreadystatechange = function () {
@@ -108,23 +118,13 @@
                 };
                 return xhr;
             },
-            url: "~archive",
-            type: "POST",
-            data: "folder=" + filename,
+            url: "~check/" + temp_filename,
+            type: "GET",
             processData: false,
-            contentType: "application/x-www-form-urlencoded",
             success: function (data) {
-                var blob = new Blob([data], { type: "application/zip" });
-                var url = window.URL || window.webkitURL;
-                link = url.createObjectURL(blob);
-                var a = $("<a />");
-                a.attr("download", filename);
-                a.attr("href", link);
-                $("body").append(a);
-                a[0].click();
-                $("body").remove(a);
+                ;
             }
-        });
+        });*/
     }
 
     window.onload = function () {

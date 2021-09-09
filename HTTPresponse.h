@@ -51,6 +51,7 @@ public:
     HTTPresponse &file_attachment(const char *filename, MIME type);
     // use for when you want a certain action executed when finishing file transfer, e.g. removing temporary file when done
     HTTPresponse &file_attachment(const char *filename, MIME type, std::function<void(const char *)> action);
+    HTTPresponse &access_control(string control);
     class filesegment_iterator
     {
     private:

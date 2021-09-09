@@ -152,6 +152,12 @@ HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type, std
     return *this;
 }
 
+HTTPresponse &HTTPresponse::access_control(string control)
+{
+    response += "Access-Control-Allow-Origin: " + control + CRLF;
+    return *this;
+}
+
 HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, size_t max_fragment_size)
 {
     this->max_fragment_size = send_fragment_size = max_fragment_size;
