@@ -479,7 +479,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             fs::directory_entry check(url + 1);
             if (!fs::exists(check) || fs::is_directory(check))
                 return not_found;
-            return HTTPresponse(200).file_attachment(url + 1, HTTPresponse::MIME::png);
+            return HTTPresponse(200).access_control("*").file_attachment(url + 1, HTTPresponse::MIME::png);
         }
         default:
             return not_implemented;
