@@ -137,18 +137,33 @@ HTTPresponse &HTTPresponse::file_attachment(string data, MIME type)
 HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type)
 {
     this->filename_str = filename;
-    std::ifstream file(filename, std::ios::binary);
+    attach_file(type);
+    return *this;
+}
+
+HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type, std::function<void(const char *, void *)> action, void *action_object)
+{
+    file_action = action;
+    this->action_object = action_object;
+    file_attachment(filename, type);
+    return *this;
+}
+
+HTTPresponse &HTTPresponse::attach_file(MIME type)
+{
+    is_promise = false;
+    std::ifstream file(filename_str, std::ios::binary);
     auto beg = file.tellg();
     uint64_t total = file.seekg(0, std::ios::end).tellg() - beg;
     content_type(type).content_length(total).end_header();
     return *this;
 }
 
-HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type, std::function<void(const char *)> action)
+HTTPresponse &HTTPresponse::attach_file(MIME type, std::function<void(const char *, void *)> action, void *action_object)
 {
     file_action = action;
-    this->is_promise = is_promise;
-    file_attachment(filename, type);
+    this->action_object = action_object;
+    attach_file(type);
     return *this;
 }
 
@@ -164,6 +179,7 @@ HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, s
     file = new std::ifstream(parent->filename_str, std::ios::binary);
     filename = parent->filename_str;
     action = parent->file_action;
+    action_object = parent->action_object;
     auto beg = file->tellg();
     remaining = file->seekg(0, std::ios::end).tellg() - beg;
     file->seekg(0, std::ios::beg);
@@ -175,6 +191,7 @@ HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse::filesegme
 {
     this->file = f.file;
     this->action = f.action;
+    this->action_object = f.action_object;
     f.file = NULL;
     this->filename = f.filename;
     this->file_data = f.file_data;
@@ -192,7 +209,7 @@ HTTPresponse::filesegment_iterator::~filesegment_iterator()
         delete file;
         delete file_data.fragment;
         if (action)
-            action(filename.c_str());
+            action(filename.c_str(), action_object);
     }
 }
 

@@ -3,12 +3,14 @@
 #include "HTTPresponse.h"
 #include "SessionCookie.h"
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <future>
 #include <functional>
 #define SERVER_DEBUG 1
 
 using std::unordered_map;
+using std::unordered_set;
 using std::vector;
 
 class WebServer
@@ -77,7 +79,11 @@ private:
     int fdmax;       // max val of read_fds
 
     unordered_map<string, Cookie *> cookies;
-    unordered_map<int, std::pair<std::future<int>, HTTPresponse>> file_futures;
+    // tuple members are as follows: connections awaiting the file, future of file, response, temporary filename
+    unordered_map<string, std::tuple<unordered_set<int>, std::future<int>, HTTPresponse, string>> file_futures;
+    unordered_map<string, std::pair<int, HTTPresponse>> downloading_futures;
+    unordered_map<string, string> temp_to_path;
+    unordered_map<int, string> fd_to_file_futures;
 
     unordered_map<int, HTTPresponse::filesegment_iterator> unsent_files;
     unordered_map<int, file_receive_data> unreceived_files;
@@ -91,6 +97,7 @@ private:
     void process_cookies();
     void remove_from_read(int fd);
     void add_to_read(int fd);
+    HTTPresponse queue_file_future(int fd, string temp_path, string folder_path, string folder_name);
     HTTPresponse process_http_request(char *data, int header_size, size_t read_size, uint64_t total_size, int fd);
 
     // int zip_folder(char *destination, char *path)

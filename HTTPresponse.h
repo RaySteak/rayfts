@@ -16,8 +16,9 @@ class HTTPresponse
 {
 private:
     string response, filename_str = "";
-    std::function<void(const char *)> file_action;
+    std::function<void(const char *, void *)> file_action;
     bool is_promise = false;
+    void *action_object = NULL;
 
 public:
     static const int PHONY = 0; // means response must be sent later
@@ -50,7 +51,9 @@ public:
     HTTPresponse &file_attachment(string data, MIME type);
     HTTPresponse &file_attachment(const char *filename, MIME type);
     // use for when you want a certain action executed when finishing file transfer, e.g. removing temporary file when done
-    HTTPresponse &file_attachment(const char *filename, MIME type, std::function<void(const char *)> action);
+    HTTPresponse &file_attachment(const char *filename, MIME type, std::function<void(const char *, void *)> action, void *action_object);
+    HTTPresponse &attach_file(MIME type);
+    HTTPresponse &attach_file(MIME type, std::function<void(const char *, void *)> action, void *action_object);
     HTTPresponse &access_control(string control);
     class filesegment_iterator
     {
@@ -64,7 +67,8 @@ public:
         uint64_t remaining = 0;
         string filename;
         std::ifstream *file = NULL;
-        std::function<void(const char *)> action;
+        std::function<void(const char *, void *)> action;
+        void *action_object;
 
     public:
         filesegment_iterator(HTTPresponse *parent, size_t max_fragment_size);

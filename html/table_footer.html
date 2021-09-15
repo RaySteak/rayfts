@@ -94,17 +94,19 @@
         });
     }
 
-    async function zipCheck(temp_filename) { // TODO: turn this into a percentage check
-        var canvas = document.createElement('canvas');
+    async function zipCheck(id) { // TODO: turn this into a percentage check
         var td = document.createElement('td');
+        var canvas = document.createElement('canvas');
+        canvas.className = "inline_canvas";
         td.appendChild(canvas);
-        _(temp_filename).replaceWith(td);
+        _("row" + id).appendChild(td);
         var ctx = canvas.getContext('2d');
-        canvas.width = canvas.height = 20;
+        var size = 20, linewidth = 4;
+        canvas.width = canvas.height = size;
         ctx.beginPath();
-        ctx.arc(0, 0, 10, 0, Math.PI, false);
+        ctx.arc(size / 2, size / 2, (size - linewidth) / 2, 0, 2 * Math.PI, false);
         ctx.stroke();
-        /*$.ajax({
+        $.ajax({
             xhr: function () {
                 var xhr = new XMLHttpRequest();
                 xhr.onreadystatechange = function () {
@@ -124,7 +126,7 @@
             success: function (data) {
                 ;
             }
-        });*/
+        });
     }
 
     window.onload = function () {

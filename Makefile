@@ -11,19 +11,7 @@ all: server
 server: server.o WebServer.o HTTPresponse.o Cookie.o SessionCookie.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-server.o: server.cpp $(HEADERS)
-	$(CC) $(CFLAGS) -o $@ $< $(LDLIBS)
-
-WebServer.o: WebServer.cpp $(HEADERS)
-	$(CC) $(CFLAGS) -o $@ $< $(LDLIBS)
-
-HTTPresponse.o: HTTPresponse.cpp $(HEADERS)
-	$(CC) $(CFLAGS) -o $@ $< $(LDLIBS)
-
-Cookie.o: Cookie.cpp $(HEADERS)
-	$(CC) $(CFLAGS) -o $@ $< $(LDLIBS)
-
-SessionCookie.o: SessionCookie.cpp Cookie.o $(HEADERS)
+%.o: %.cpp $(HEADERS)
 	$(CC) $(CFLAGS) -o $@ $< $(LDLIBS)
 
 clean:

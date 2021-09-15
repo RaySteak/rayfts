@@ -8,6 +8,7 @@
 
 using std::async;
 using std::make_pair;
+using std::make_tuple;
 using std::set;
 using std::unordered_map;
 
@@ -164,11 +165,19 @@ void WebServer::close_connection(int fd, bool erase_from_sets)
 {
     if (erase_from_sets)
     {
-        auto found_it = file_futures.find(fd);
-        if (found_it != file_futures.end())
+        // TODO: find a way to delete fd_to_file_futures element when done sending
+        auto found_it = fd_to_file_futures.find(fd);
+        if (found_it != fd_to_file_futures.end())
         {
-            fs::remove(found_it->second.second.get_filename());
-            file_futures.erase(found_it);
+            auto future_it = file_futures.find(found_it->second);
+            if (future_it != file_futures.end())
+            {
+                auto &fd_set = std::get<0>(future_it->second);
+                fd_set.erase(fd);
+                if (fd_set.empty())
+                    file_futures.erase(future_it);
+            }
+            fd_to_file_futures.erase(fd);
         }
         unsent_files.erase(fd);
         unreceived_files.erase(fd);
@@ -334,7 +343,7 @@ string generate_folder_html(string path)
     int i = 0;
     for (auto &file : entries)
     {
-        folder += "<tr style=\"background-color:#" + (i % 2 ? string("FFFFFF") : string("808080")) + "\">";
+        folder += "<tr style=\"background-color:#" + (i % 2 ? string("FFFFFF") : string("808080")) + "\" id=row" + to_string(i) + ">";
         string size, filename = file.path().filename().string(), short_filename = filename.substr(0, max_name_length) + (filename.length() > max_name_length ? " ...  " : "  ");
         constexpr char tdbeg[] = "<td><a href=\"";
         constexpr char tdend[] = "</a></td>";
@@ -349,9 +358,8 @@ string generate_folder_html(string path)
         {
             size = "-";
             folder += add_table_image("folder.png");
-            string id = "archive" + to_string(i);
             folder += tdbeg + filename + "/\" " + title + short_filename +
-                      "</a><a href=\"" + filename + "/~archive\" id=\"" + id + "\" onclick=\"zipCheck('" + id + "')\">" +
+                      "</a><a href=\"" + filename + "/~archive\" onclick=\"zipCheck('" + to_string(i) + "')\">" +
                       add_image("download.png") + tdend;
         }
         folder += "<td>" + size + "</td>";
@@ -421,6 +429,31 @@ string get_action_and_truncate(string &url) // returns empty string on fail
         return action;
     }
     return "";
+}
+
+HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folder_path, string folder_name)
+{
+    fd_to_file_futures.insert({fd, folder_path});
+    auto future_it = file_futures.find(folder_path);
+    auto downloading_it = downloading_futures.find(folder_path);
+    if (future_it == file_futures.end() && downloading_it == downloading_futures.end()) // nobody neither waiting for creation nor for receiving
+    {
+        temp_to_path.insert({temp_path, folder_path});
+        auto response = HTTPresponse(200).content_disposition(HTTPresponse::DISP::Attachment, folder_name + ".zip").file_promise(temp_path.c_str());
+        unordered_set<int> new_set;
+        new_set.insert(fd);
+        file_futures.insert(
+            {folder_path, make_tuple(new_set, async(std::launch::async, zip_folder, strdup(temp_path.c_str()), strdup(folder_path.c_str())), response, temp_path)});
+        return response;
+    }
+    if (future_it != file_futures.end()) // file is still being created, return the incomplete response
+    {
+        std::get<0>(future_it->second).insert(fd);
+        return std::get<2>(future_it->second);
+    }
+    // file is still being downloaded by others, begin transfer directly
+    downloading_it->second.first++;
+    return downloading_it->second.second;
 }
 
 HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t read_size, uint64_t total_size, int fd)
@@ -554,9 +587,8 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                                            { return fs::is_regular_file(e); });
                     filename = filename + to_string(nr + 1) + ".zip";
                     //TODO: with current code, filename gets copied twice, solve that
-                    auto response = HTTPresponse(200).content_disposition(HTTPresponse::DISP::Attachment, folder_name + ".zip").file_promise(filename.c_str());
-                    file_futures.insert({fd, make_pair(async(std::launch::async, zip_folder, strdup(filename.c_str()), strdup(path.c_str())), response)});
-                    return response;
+                    //TODO: check if someone already initiated zipping of this file
+                    return queue_file_future(fd, filename, path, folder_name);
                 }
                 return not_found;
             }
@@ -651,6 +683,9 @@ void WebServer::run()
 {
     while (1)
     {
+        std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << '\n';
+        if (temp_to_path.size())
+            std::cout << temp_to_path.begin()->first << '\n';
         tmp_fds = read_fds;
         int available_requests;
         if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)
@@ -667,16 +702,41 @@ void WebServer::run()
         // check available future files
         for (auto map_iterator = file_futures.begin(); map_iterator != file_futures.end();)
         {
-            if (map_iterator->second.first.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+            auto &fds = std::get<0>(map_iterator->second);
+            auto &future = std::get<1>(map_iterator->second);
+            auto &response = std::get<2>(map_iterator->second);
+            if (future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
             {
-                // TODO: use return value of future and also the other double filename copy thingy
-                // maybe create a method for when the filename is already set, called attach_file
+                // TODO: use return value of future
                 // TODO: is it worth it sending part of response immediately and the rest later?
-                auto &response = map_iterator->second.second;
-                response.file_attachment(response.get_filename().c_str(), HTTPresponse::MIME::zip, [](const char *filename)
-                                         { fs::remove(filename); });
-                send_exactly(map_iterator->first, response.to_c_str(), response.size());
-                unsent_files.insert({map_iterator->first, response.begin_file_transfer()});
+                response.attach_file(
+                    HTTPresponse::MIME::zip, [](const char *filename, void *action_object)
+                    {
+                        std::cout << "INTRA IN ASTA\n";
+                        WebServer *server = (WebServer *)action_object;
+                        string folder_path = server->temp_to_path[filename];
+                        auto entry = server->downloading_futures.find(folder_path);
+                        if (entry->second.first == 1) // only this connection is downloading this file
+                        {
+                            std::cout << "SI INTRA AICI\n";
+                            fs::remove(filename);
+                            server->temp_to_path.erase(filename);
+                            server->downloading_futures.erase(entry);
+                        }
+                        else
+                        {
+                            entry->second.first--;
+                        }
+                        std::cout << "IESE DIN ASTA\n";
+                    },
+                    this);
+                // send to everyone who was waiting for the file
+                for (auto &connection : fds)
+                {
+                    send_exactly(connection, response.to_c_str(), response.size());
+                    unsent_files.insert({connection, response.begin_file_transfer()});
+                }
+                downloading_futures.insert({map_iterator->first, std::make_pair(fds.size(), response)});
                 map_iterator = file_futures.erase(map_iterator);
                 continue;
             }
@@ -703,9 +763,14 @@ void WebServer::run()
             {
                 map_iterator->second++;
                 if (map_iterator->second.has_next())
+                {
                     map_iterator++;
+                }
                 else
+                {
+                    fd_to_file_futures.erase(map_iterator->first);
                     map_iterator = unsent_files.erase(map_iterator);
+                }
             }
         }
         // receive files
@@ -813,7 +878,6 @@ void WebServer::run()
                                 unsent_files.insert({i, response.begin_file_transfer()});
                         }
                         std::cout << "Am trimis raspunsul\n";
-
                         delete data;
                     }
                 }
