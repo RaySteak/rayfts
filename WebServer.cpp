@@ -595,10 +595,11 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 if (action == "check")
                 {
                     std::cout << "CAUTAM PE " << url_string.substr(0, url_string.length() - 1) << '\n';
-                    if (file_futures.find(url_string.substr(0, url_string.length() - 1)) != file_futures.end())
+                    auto found_future = file_futures.find(url_string.substr(0, url_string.length() - 1));
+                    if (found_future != file_futures.end())
                     {
-                        std::cout << "\n\n\n\n\n\n!!! L-AM GASIT !!!\n\n\n\n\n\n";
-                        return HTTPresponse(200).file_attachment(string("LOL A MERS ASTA E"), HTTPresponse::MIME::text);
+                        int temp_size = fs::file_size(std::get<3>(found_future->second));
+                        return HTTPresponse(200).file_attachment(to_string(temp_size), HTTPresponse::MIME::text);
                     }
                 }
                 return not_found;
