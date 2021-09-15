@@ -595,7 +595,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 if (action == "check")
                 {
                     std::cout << "CAUTAM PE " << url_string.substr(0, url_string.length() - 1) << '\n';
-                    if (file_futures.find("files/" + url_string.substr(0, url_string.length() - 1)) != file_futures.end())
+                    if (file_futures.find(url_string.substr(0, url_string.length() - 1)) != file_futures.end())
                     {
                         std::cout << "\n\n\n\n\n\n!!! L-AM GASIT !!!\n\n\n\n\n\n";
                         return HTTPresponse(200).file_attachment(string("LOL A MERS ASTA E"), HTTPresponse::MIME::text);
