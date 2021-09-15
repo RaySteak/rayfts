@@ -442,8 +442,10 @@ HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folde
         auto response = HTTPresponse(200).content_disposition(HTTPresponse::DISP::Attachment, folder_name + ".zip").file_promise(temp_path.c_str());
         unordered_set<int> new_set;
         new_set.insert(fd);
+        std::cout << "\n\n\n\nINSERAM PE: " << folder_path << "\n\n\n\n";
+        string full_path = "./files" + folder_path;
         file_futures.insert(
-            {folder_path, make_tuple(new_set, async(std::launch::async, zip_folder, strdup(temp_path.c_str()), strdup(folder_path.c_str())), response, temp_path)});
+            {folder_path, make_tuple(new_set, async(std::launch::async, zip_folder, strdup(temp_path.c_str()), strdup(full_path.c_str())), response, temp_path)});
         return response;
     }
     if (future_it != file_futures.end()) // file is still being created, return the incomplete response
@@ -579,7 +581,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     //what's weird is that the file gets removed succesfully but /bin/7z doesn't seem to notice it's writing into the void??
                     size_t delim = url_string.find_last_of('/', url_string.length() - 2);
                     string folder_name = url_string.substr(delim + 1, url_string.size() - delim - 2);
-                    string filename = "temp/TEMP", path = "./files" + url_string.substr(0, url_string.size() - 1);
+                    string filename = "temp/TEMP", path = url_string.substr(0, url_string.size() - 1);
                     if (!fs::exists(fs::directory_entry("temp")))
                         fs::create_directory("temp");
                     auto it = fs::directory_iterator("temp/");
@@ -589,6 +591,15 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     //TODO: with current code, filename gets copied twice, solve that
                     //TODO: check if someone already initiated zipping of this file
                     return queue_file_future(fd, filename, path, folder_name);
+                }
+                if (action == "check")
+                {
+                    std::cout << "CAUTAM PE " << url_string.substr(0, url_string.length() - 1) << '\n';
+                    if (file_futures.find("files/" + url_string.substr(0, url_string.length() - 1)) != file_futures.end())
+                    {
+                        std::cout << "\n\n\n\n\n\n!!! L-AM GASIT !!!\n\n\n\n\n\n";
+                        return HTTPresponse(200).file_attachment(string("LOL A MERS ASTA E"), HTTPresponse::MIME::text);
+                    }
                 }
                 return not_found;
             }
@@ -683,9 +694,7 @@ void WebServer::run()
 {
     while (1)
     {
-        std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << '\n';
-        if (temp_to_path.size())
-            std::cout << temp_to_path.begin()->first << '\n';
+        //std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << '\n';
         tmp_fds = read_fds;
         int available_requests;
         if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)

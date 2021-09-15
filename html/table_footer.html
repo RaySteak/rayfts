@@ -94,7 +94,7 @@
         });
     }
 
-    async function zipCheck(id) { // TODO: turn this into a percentage check
+    async function zipCheck(id) {
         var td = document.createElement('td');
         var canvas = document.createElement('canvas');
         canvas.className = "inline_canvas";
@@ -106,27 +106,32 @@
         ctx.beginPath();
         ctx.arc(size / 2, size / 2, (size - linewidth) / 2, 0, 2 * Math.PI, false);
         ctx.stroke();
-        $.ajax({
-            xhr: function () {
-                var xhr = new XMLHttpRequest();
-                xhr.onreadystatechange = function () {
-                    if (xhr.readyState == 2) {
-                        if (xhr.status == 200) {
-                            xhr.responseType = "blob";
-                        } else {
-                            xhr.responseType = "text";
+        var folder_name = _("row" + id).firstChild.nextSibling.firstChild.title; // !!! this will change if structure of table changes !!!
+        console.log(window.location.pathname + folder_name + "~/check");
+        while (true) {
+            $.ajax({
+                xhr: function () {
+                    var xhr = new XMLHttpRequest();
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState == 2) {
+                            if (xhr.status == 200) {
+                                xhr.responseType = "blob";
+                            } else {
+                                xhr.responseType = "text";
+                            }
                         }
-                    }
-                };
-                return xhr;
-            },
-            url: "~check/" + temp_filename,
-            type: "GET",
-            processData: false,
-            success: function (data) {
-                ;
-            }
-        });
+                    };
+                    return xhr;
+                },
+                url: window.location.pathname + folder_name + "/~check",
+                type: "GET",
+                processData: false,
+                success: function (data) {
+                    console.log("A MERS!!!!");
+                }
+            });
+            await sleep(1000);
+        }
     }
 
     window.onload = function () {
