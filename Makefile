@@ -3,7 +3,7 @@
 CC = g++
 CFLAGS = -Wall -Wextra -std=c++17 -O3 -D_FILE_OFFSET_BITS=64 -Wno-psabi -c
 LDFLAGS = -Wall -Wextra -std=c++17 -O3 -D_FILE_OFFSET_BITS=64
-LDLIBS = -lboost_filesystem -lpthread
+LDLIBS = -lboost_filesystem -lboost_system -lpthread
 HEADERS = lock_writable_unordered_map.h common_utils.h WebServer.h HTTPresponse.h Cookie.h SessionCookie.h
 
 all: server
