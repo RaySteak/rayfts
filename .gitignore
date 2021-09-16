@@ -2,3 +2,4 @@ server
 files/*
 *.o
 settings.json
+.gdb_history
