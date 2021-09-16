@@ -172,11 +172,11 @@ void WebServer::close_connection(int fd, bool erase_from_sets)
         auto future_it = file_futures.find(path);
         if (future_it != file_futures.end())
         {
-            temp_to_path.erase(found_it->second);
             auto &fd_set = std::get<0>(future_it->second);
             fd_set.erase(fd);
             if (fd_set.empty())
             {
+                temp_to_path.erase(found_it->second);
                 fs::remove(found_it->second); // remove file
                 auto pid_it = path_to_pid.find(path);
                 if (pid_it != path_to_pid.end())
