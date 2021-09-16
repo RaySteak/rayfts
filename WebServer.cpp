@@ -1,4 +1,5 @@
 #include "WebServer.h"
+#include "web_utils.h"
 #include <algorithm>
 #include <set>
 #include <spawn.h>
@@ -6,6 +7,7 @@
 #include <sstream>
 #include <boost/filesystem.hpp>
 
+using namespace web_utils;
 using std::async;
 using std::make_pair;
 using std::make_tuple;
@@ -264,21 +266,6 @@ int WebServer::process_http_header(int fd, char *buffer, int read_size, int head
     return nr;
 }
 
-unordered_map<string, string> get_content_fields(char *content, const char *is, const char *separators)
-{
-    unordered_map<string, string> fields;
-    for (char *p = strtok(content, separators); p; p = strtok(NULL, separators))
-    {
-        char *eq = strstr(p, is);
-        if (!eq)
-            return unordered_map<string, string>();
-        eq[0] = 0;
-        string field = p, val = eq + strlen(is);
-        fields.insert({field, val});
-    }
-    return fields;
-}
-
 void WebServer::process_cookies()
 {
     for (auto it = cookies.begin(); it != cookies.end();)
@@ -310,35 +297,11 @@ void WebServer::remove_from_read(int fd)
         }
     }
 }
+
 void WebServer::add_to_read(int fd)
 {
     FD_SET(fd, &read_fds);
     fdmax = fd > fdmax ? fd : fdmax;
-}
-
-string human_readable(uint64_t size)
-{
-    if (size >= 1LL << 30)
-    {
-        double real_size = double(size) / (1LL << 30);
-        int hr_size = int(real_size * 100);
-        return to_string(hr_size / 100) + "." + to_string(hr_size % 100) + "GB";
-    }
-    if (size >= 1 << 20)
-        return to_string(size / (1 << 20)) + "MB";
-    if (size >= 1 << 10)
-        return to_string(size / (1 << 10)) + "KB";
-    return to_string(size) + "B";
-}
-
-inline string add_image(string image)
-{
-    return "<img src=\"/~images/" + image + "\" height=\"20\" width=\"20\" alt=\"N/A\">";
-}
-
-inline string add_table_image(string image)
-{
-    return "<td>" + add_image(image) + "</td>";
 }
 
 string generate_folder_html(string path)
@@ -386,35 +349,6 @@ string generate_folder_html(string path)
     folder += "<p hidden id=free_space>" + to_string(stat.free) + "</p><p hidden id=used_space>" + to_string(stat.capacity - stat.free) + "</p>";
     folder += "</body></html>";
     return folder;
-}
-
-string parse_webstring(string name, bool replace_plus)
-{
-    const char hex_digits[] = "0123456789ABCDEF";
-    size_t pos = 0;
-    if (replace_plus)
-    {
-        while ((pos = name.find('+', pos)) != string::npos)
-            name[pos] = ' ';
-    }
-    pos = 0;
-    while ((pos = name.find('%', pos)) != string::npos)
-    {
-        char c1 = name[pos + 1], c2 = name[pos + 2];
-        if (name.size() - pos <= 2 || !strchr(hex_digits, c1) || !strchr(hex_digits, c2) || (c1 == '0' && c2 == '0'))
-        {
-            pos++;
-            continue;
-        }
-        std::stringstream character;
-        character.str(name.substr(pos + 1, 2));
-        name.erase(pos, 3);
-        int c;
-        character >> std::hex >> c;
-        name.insert(name.begin() + pos, (char)c);
-    }
-    pos = 0;
-    return name;
 }
 
 bool check_name(string name)
@@ -732,7 +666,7 @@ void WebServer::run()
 {
     while (1)
     {
-        std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
+        //std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
         tmp_fds = read_fds;
         int available_requests;
         if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)
