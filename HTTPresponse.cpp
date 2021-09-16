@@ -35,6 +35,9 @@ HTTPresponse::HTTPresponse(int code)
     case 501:
         response += "Not Implemented";
         break;
+    case 503:
+        response += "Service Unavailable";
+        break;
     default:
         break;
     }

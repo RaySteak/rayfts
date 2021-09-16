@@ -51,13 +51,14 @@ WebServer::WebServer(int port, const char *user, const char *pass)
     init_server_params(port, user, pass);
 
     // default zip_folder function
-    zip_folder = [](char *destination, char *path)
+    zip_folder = [](char *destination, char *path, WebServer *server)
     {
         pid_t pid;
         int status;
         char argv0[] = "/bin/7z", argv1[] = "a", argv4[] = "-mx0";
         char *const argv[] = {argv0, argv1, destination, path, argv4, NULL};
         status = posix_spawn(&pid, argv0, NULL, NULL, argv, NULL);
+        server->path_to_pid.insert({string(path + strlen("./files")), pid});
         free(destination), free(path);
         if (status)
             return -1;
@@ -68,7 +69,7 @@ WebServer::WebServer(int port, const char *user, const char *pass)
     };
 }
 
-WebServer::WebServer(int port, const char *user, const char *pass, std::function<int(char *destination, char *user)> zip_folder)
+WebServer::WebServer(int port, const char *user, const char *pass, std::function<int(char *destination, char *user, WebServer *)> zip_folder)
 {
     init_server_params(port, user, pass);
 
@@ -163,22 +164,34 @@ int WebServer::recv_http_header(int fd, char *buffer, int max, int &header_size)
 
 void WebServer::close_connection(int fd, bool erase_from_sets)
 {
+    // TODO: find a way to delete fd_to_file_futures element when done sending
+    auto found_it = fd_to_file_futures.find(fd);
+    if (found_it != fd_to_file_futures.end())
+    {
+        auto path = temp_to_path[found_it->second];
+        auto future_it = file_futures.find(path);
+        if (future_it != file_futures.end())
+        {
+            temp_to_path.erase(found_it->second);
+            auto &fd_set = std::get<0>(future_it->second);
+            fd_set.erase(fd);
+            if (fd_set.empty())
+            {
+                fs::remove(found_it->second); // remove file
+                auto pid_it = path_to_pid.find(path);
+                if (pid_it != path_to_pid.end())
+                {
+                    kill(pid_it->second, SIGKILL);
+                    path_to_pid.erase(path);
+                }
+                file_futures.erase(future_it);
+            }
+        }
+        fd_to_file_futures.erase(fd);
+    }
+
     if (erase_from_sets)
     {
-        // TODO: find a way to delete fd_to_file_futures element when done sending
-        auto found_it = fd_to_file_futures.find(fd);
-        if (found_it != fd_to_file_futures.end())
-        {
-            auto future_it = file_futures.find(found_it->second);
-            if (future_it != file_futures.end())
-            {
-                auto &fd_set = std::get<0>(future_it->second);
-                fd_set.erase(fd);
-                if (fd_set.empty())
-                    file_futures.erase(future_it);
-            }
-            fd_to_file_futures.erase(fd);
-        }
         unsent_files.erase(fd);
         unreceived_files.erase(fd);
     }
@@ -431,25 +444,43 @@ string get_action_and_truncate(string &url) // returns empty string on fail
     return "";
 }
 
+uint64_t get_folder_size(string folder_path)
+{
+    uint64_t size = 0LL;
+    for (fs::recursive_directory_iterator it(folder_path), end; it != end; it++)
+    {
+        auto entry = fs::directory_entry(it->path());
+        if (fs::is_regular_file(entry))
+            size += fs::file_size(entry);
+    }
+    return size;
+}
+
 HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folder_path, string folder_name)
 {
-    fd_to_file_futures.insert({fd, folder_path});
+    auto file_future_it = fd_to_file_futures.find(fd);
+    if (file_future_it != fd_to_file_futures.end())
+    {
+        if (file_futures.find(temp_to_path[file_future_it->second]) != file_futures.end())
+            return HTTPresponse(503).file_attachment(string("You can't queue zipping again!"), HTTPresponse::MIME::text);
+    }
     auto future_it = file_futures.find(folder_path);
     auto downloading_it = downloading_futures.find(folder_path);
     if (future_it == file_futures.end() && downloading_it == downloading_futures.end()) // nobody neither waiting for creation nor for receiving
     {
+        fd_to_file_futures.insert({fd, temp_path});
         temp_to_path.insert({temp_path, folder_path});
         auto response = HTTPresponse(200).content_disposition(HTTPresponse::DISP::Attachment, folder_name + ".zip").file_promise(temp_path.c_str());
         unordered_set<int> new_set;
         new_set.insert(fd);
-        std::cout << "\n\n\n\nINSERAM PE: " << folder_path << "\n\n\n\n";
         string full_path = "./files" + folder_path;
         file_futures.insert(
-            {folder_path, make_tuple(new_set, async(std::launch::async, zip_folder, strdup(temp_path.c_str()), strdup(full_path.c_str())), response, temp_path)});
+            {folder_path, make_tuple(new_set, async(std::launch::async, zip_folder, strdup(temp_path.c_str()), strdup(full_path.c_str()), this), response, temp_path, get_folder_size(full_path))});
         return response;
     }
     if (future_it != file_futures.end()) // file is still being created, return the incomplete response
     {
+        fd_to_file_futures.insert({fd, std::get<3>(future_it->second)});
         std::get<0>(future_it->second).insert(fd);
         return std::get<2>(future_it->second);
     }
@@ -588,18 +619,24 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     int nr = std::count_if(fs::begin(it), fs::end(it), [](fs::directory_entry e)
                                            { return fs::is_regular_file(e); });
                     filename = filename + to_string(nr + 1) + ".zip";
-                    //TODO: with current code, filename gets copied twice, solve that
-                    //TODO: check if someone already initiated zipping of this file
                     return queue_file_future(fd, filename, path, folder_name);
                 }
                 if (action == "check")
                 {
-                    std::cout << "CAUTAM PE " << url_string.substr(0, url_string.length() - 1) << '\n';
                     auto found_future = file_futures.find(url_string.substr(0, url_string.length() - 1));
                     if (found_future != file_futures.end())
                     {
-                        int temp_size = fs::file_size(std::get<3>(found_future->second));
-                        return HTTPresponse(200).file_attachment(to_string(temp_size), HTTPresponse::MIME::text);
+                        uint64_t temp_size;
+                        try
+                        {
+                            temp_size = fs::file_size(std::get<3>(found_future->second));
+                        }
+                        catch (const std::exception &e)
+                        {
+                            return not_found;
+                        }
+                        uint64_t full_size = std::get<4>(found_future->second);
+                        return HTTPresponse(200).file_attachment(to_string(temp_size) + ' ' + to_string(full_size), HTTPresponse::MIME::text);
                     }
                 }
                 return not_found;
@@ -695,7 +732,7 @@ void WebServer::run()
 {
     while (1)
     {
-        //std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << '\n';
+        //std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
         tmp_fds = read_fds;
         int available_requests;
         if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)
@@ -722,13 +759,11 @@ void WebServer::run()
                 response.attach_file(
                     HTTPresponse::MIME::zip, [](const char *filename, void *action_object)
                     {
-                        std::cout << "INTRA IN ASTA\n";
                         WebServer *server = (WebServer *)action_object;
                         string folder_path = server->temp_to_path[filename];
                         auto entry = server->downloading_futures.find(folder_path);
                         if (entry->second.first == 1) // only this connection is downloading this file
                         {
-                            std::cout << "SI INTRA AICI\n";
                             fs::remove(filename);
                             server->temp_to_path.erase(filename);
                             server->downloading_futures.erase(entry);
@@ -737,7 +772,6 @@ void WebServer::run()
                         {
                             entry->second.first--;
                         }
-                        std::cout << "IESE DIN ASTA\n";
                     },
                     this);
                 // send to everyone who was waiting for the file
@@ -747,6 +781,7 @@ void WebServer::run()
                     unsent_files.insert({connection, response.begin_file_transfer()});
                 }
                 downloading_futures.insert({map_iterator->first, std::make_pair(fds.size(), response)});
+                path_to_pid.erase(map_iterator->first);
                 map_iterator = file_futures.erase(map_iterator);
                 continue;
             }

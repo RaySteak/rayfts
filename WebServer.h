@@ -2,6 +2,7 @@
 #include "common_utils.h"
 #include "HTTPresponse.h"
 #include "SessionCookie.h"
+#include "lock_writable_unordered_map.h"
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -79,11 +80,12 @@ private:
     int fdmax;       // max val of read_fds
 
     unordered_map<string, Cookie *> cookies;
-    // tuple members are as follows: connections awaiting the file, future of file, response, temporary filename
-    unordered_map<string, std::tuple<unordered_set<int>, std::future<int>, HTTPresponse, string>> file_futures;
+    // tuple members are as follows: connections awaiting the file, future of file, response, temporary filename, size of final file (approximate for zips)
+    unordered_map<string, std::tuple<unordered_set<int>, std::future<int>, HTTPresponse, string, uint64_t>> file_futures;
     unordered_map<string, std::pair<int, HTTPresponse>> downloading_futures;
     unordered_map<string, string> temp_to_path;
     unordered_map<int, string> fd_to_file_futures;
+    lock_writable_unordered_map<string, pid_t> path_to_pid;
 
     unordered_map<int, HTTPresponse::filesegment_iterator> unsent_files;
     unordered_map<int, file_receive_data> unreceived_files;
@@ -105,7 +107,7 @@ private:
     // this function uses /bin/7z by default for ease of implementation,
     // it can be replaced by any function by using the 4-parameter constructor
     // this function must free the memory of the two parameters
-    std::function<int(char *, char *)> zip_folder;
+    std::function<int(char *, char *, WebServer *)> zip_folder;
 
     const int timeout_milli = 100;
     static const size_t max_alloc = 16 * (1 << 10); // used for receive size
@@ -130,7 +132,7 @@ public:
     };
 
     WebServer(int port, const char *user, const char *path);
-    WebServer(int port, const char *user, const char *path, std::function<int(char *, char *)> zip_folder);
+    WebServer(int port, const char *user, const char *path, std::function<int(char *, char *, WebServer *)> zip_folder);
     virtual ~WebServer();
     void run();
 };

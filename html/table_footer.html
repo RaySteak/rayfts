@@ -103,17 +103,30 @@
         var ctx = canvas.getContext('2d');
         var size = 20, linewidth = 4;
         canvas.width = canvas.height = size;
-        ctx.beginPath();
-        ctx.arc(size / 2, size / 2, (size - linewidth) / 2, 0, 2 * Math.PI, false);
-        ctx.stroke();
         var folder_name = _("row" + id).firstChild.nextSibling.firstChild.title; // !!! this will change if structure of table changes !!!
         console.log(window.location.pathname + folder_name + "~/check");
+        var nr_fails = 0;
+        var drawCircle = function (percentage) {
+            ctx.clearRect(0, 0, size, size);
+            ctx.beginPath();
+            ctx.strokeStyle = '#efefef';
+            ctx.arc(size / 2, size / 2, (size - linewidth) / 2, 0, 2 * Math.PI, false);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgb(255, 0, 0)';
+            ctx.arc(size / 2, size / 2, (size - linewidth) / 2, -Math.PI / 2, 2 * Math.PI * percentage - Math.PI / 2, false);
+            ctx.stroke();
+        }
         while (true) {
             $.ajax({
                 xhr: function () {
                     var xhr = new XMLHttpRequest();
                     xhr.onreadystatechange = function () {
-                        xhr.responseType = "text";
+                        if (xhr.readyState == 2) {
+                            xhr.responseType = "text";
+                            if (xhr.status != "200")
+                                nr_fails++;
+                        }
                     };
                     return xhr;
                 },
@@ -121,11 +134,21 @@
                 type: "GET",
                 processData: false,
                 success: function (data) {
-                    console.log(data);
+                    const sizes = data.split(" ");
+                    var cur_size = parseInt(sizes[0]);
+                    var total_size = parseInt(sizes[1]);
+                    percentage = cur_size / total_size;
+                    requestAnimationFrame(function () { drawCircle(percentage) });
                 }
             });
-            await sleep(1000);
+            if (nr_fails >= 2)
+                break;
+            await sleep(200);
         }
+        percentage = 1;
+        requestAnimationFrame(drawCircle);
+        await sleep(200);
+        _("row" + id).removeChild(td);
     }
 
     window.onload = function () {
