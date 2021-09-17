@@ -46,6 +46,22 @@ void WebServer::init_server_params(int port, const char *user, const char *pass)
     fdmax = listenfd;
 
     FD_SET(STDIN_FILENO, &read_fds); // stdin for exit command
+
+    // create folders ./temp and ./files
+    const char *const required_folders[] = {"files", "temp", NULL};
+    for (int i = 0; required_folders[i]; i++)
+    {
+        if (!fs::exists(required_folders[i]))
+        {
+            fs::create_directory(required_folders[i]);
+        }
+        else if (!fs::is_directory(required_folders[i]))
+        {
+            std::cerr << "Server cannot run because there's already a file named \"" << required_folders[i] << "\"\n";
+            std::cerr << "Please remove said file for the server to run\n";
+            exit(1);
+        }
+    }
 }
 
 WebServer::WebServer(int port, const char *user, const char *pass)
@@ -547,8 +563,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     size_t delim = url_string.find_last_of('/', url_string.length() - 2);
                     string folder_name = url_string.substr(delim + 1, url_string.size() - delim - 2);
                     string filename = "temp/TEMP", path = url_string.substr(0, url_string.size() - 1);
-                    if (!fs::exists(fs::directory_entry("temp")))
-                        fs::create_directory("temp");
                     auto it = fs::directory_iterator("temp/");
                     int nr = std::count_if(fs::begin(it), fs::end(it), [](fs::directory_entry e)
                                            { return fs::is_regular_file(e); });
