@@ -893,4 +893,6 @@ WebServer::~WebServer()
     }
     for (auto &[id, c] : cookies)
         delete c;
+    for (auto &[path, pid] : path_to_pid)
+        kill(pid, SIGKILL);
 }
