@@ -182,7 +182,6 @@ int WebServer::recv_http_header(int fd, char *buffer, int max, int &header_size)
 
 void WebServer::close_connection(int fd, bool erase_from_sets)
 {
-    // TODO: find a way to delete fd_to_file_futures element when done sending
     auto found_it = fd_to_file_futures.find(fd);
     if (found_it != fd_to_file_futures.end())
     {
@@ -512,7 +511,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     }
     else
     {
-        //TODO: redirect something like "/test" to "/test/" for directory queries
         HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
         string cookie = http_fields["Cookie"];
         char *cookie_copy = strdup(cookie.c_str());
@@ -558,8 +556,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 string action = get_action_and_truncate(url_string);
                 if (action == "archive")
                 {
-                    //TODO: find an elegant way to kill any process created by zip_folder ran in async, as they still run when connection is closed
-                    //what's weird is that the file gets removed succesfully but /bin/7z doesn't seem to notice it's writing into the void??
                     size_t delim = url_string.find_last_of('/', url_string.length() - 2);
                     string folder_name = url_string.substr(delim + 1, url_string.size() - delim - 2);
                     string filename = "temp/TEMP", path = url_string.substr(0, url_string.size() - 1);
@@ -596,7 +592,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         {
             if (doesnt_exist)
             {
-                //TODO: check if path to /~delete exists
                 string action = get_action_and_truncate(url_string);
                 if (action == "delete")
                 {
@@ -703,7 +698,6 @@ void WebServer::run()
             if (future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
             {
                 // TODO: use return value of future
-                // TODO: is it worth it sending part of response immediately and the rest later?
                 response.attach_file(
                     HTTPresponse::MIME::zip, [](const char *filename, void *action_object)
                     {
@@ -831,9 +825,6 @@ void WebServer::run()
                     {
                         newsockfd = accept(listenfd, (sockaddr *)&cli_addr, &socklen);
                         DIE(newsockfd < 0, "accept");
-                        /*int option = 1;
-                        ret = setsockopt(newsockfd, IPPROTO_TCP, TCP_NODELAY, &option, sizeof(int));
-                        DIE(ret < 0, "no_delay");*/
                         FD_SET(newsockfd, &read_fds);
                         fdmax = newsockfd > fdmax ? newsockfd : fdmax;
                     }
