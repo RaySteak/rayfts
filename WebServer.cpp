@@ -458,7 +458,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             .file_attachment(string("Incercati sa ma hackati dar in balta va-necati"), HTTPresponse::MIME::text);
     if (!strcmp(url, "/"))
     {
-        return HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::html);
+        return HTTPresponse(302).location("/files/").file_attachment(redirect, HTTPresponse::MIME::html);
     }
     else if (!strcmp(url, "/login"))
     {
