@@ -385,8 +385,7 @@ string get_action_and_truncate(string &url) // returns empty string on fail
     {
         string action = url.substr(pos + 1);
         url = url.substr(0, pos);
-        std::ifstream check_exists(url, std::ios::binary);
-        if (!fs::exists(url))
+        if (!fs::exists(url) && !(url[url.length() - 1] == '/' && fs::exists(url.substr(0, url.length() - 1))))
             return "";
         return action;
     }
