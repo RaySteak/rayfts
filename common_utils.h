@@ -23,5 +23,7 @@
         }                                                      \
     } while (0)
 
+#define startcmp(s, w) strncmp(s, w, strlen(w))
+
 #define BUFLEN 8192
 #define MAX_CLIENTS 5

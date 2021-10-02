@@ -23,14 +23,6 @@
 <script>
     document.title = window.location.host + window.location.pathname;
 
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    function _(el) {
-        return document.getElementById(el);
-    }
-
     function check() {
         var folder_name = _("folder_name").value;
         var not_allowed = ["&", "/", "%", "~", "..", "="];

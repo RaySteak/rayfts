@@ -124,17 +124,17 @@ int WebServer::recv_exactly(int fd, char *buffer, size_t count, timeval t) //TOD
 
 WebServer::Method get_method(char *data)
 {
-    if (!strncmp(data, "GET", 3))
+    if (!startcmp(data, "GET"))
         return WebServer::Method::GET;
-    if (!strncmp(data, "HEAD", 4))
+    if (!startcmp(data, "HEAD"))
         return WebServer::Method::HEAD;
-    if (!strncmp(data, "POST", 4))
+    if (!startcmp(data, "POST"))
         return WebServer::Method::POST;
-    if (!strncmp(data, "PUT", 3))
+    if (!startcmp(data, "PUT"))
         return WebServer::Method::PUT;
-    if (!strncmp(data, "DELETE", 6))
+    if (!startcmp(data, "DELETE"))
         return WebServer::Method::DELETE;
-    if (!strncmp(data, "OPTIONS", 7))
+    if (!startcmp(data, "OPTIONS"))
         return WebServer::Method::OPTIONS;
     return WebServer::Method::nil;
 }
@@ -486,7 +486,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             return not_implemented;
         }
     }
-    else if (!strncmp(url, "/~images/", 9))
+    else if (!startcmp(url, "/images/") || !startcmp(url, "/js/")) // public folders
     {
         switch (method)
         {
@@ -498,7 +498,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             fs::directory_entry check(url + 1);
             if (!fs::exists(check) || fs::is_directory(check))
                 return not_found;
-            return HTTPresponse(200).access_control("*").file_attachment(url + 1, HTTPresponse::MIME::png);
+            return HTTPresponse(200).access_control("*").file_attachment(url + 1, guess_mime_type(url + 1));
         }
         default:
             return not_implemented;
@@ -508,7 +508,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     {
         return HTTPresponse(200).file_attachment("ico/favicon.ico", HTTPresponse::MIME::icon);
     }
-    else if (!strncmp(url, "/files/", 7))
+    else if (!startcmp(url, "/files/"))
     {
         url_string = url_string.substr(1);
         HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
@@ -827,7 +827,7 @@ void WebServer::run()
                     {
                         if (!fgets(buffer, BUFLEN, stdin))
                             break;
-                        if (!strncmp(buffer, "exit", 4))
+                        if (!startcmp(buffer, "exit"))
                             break;
                         fprintf(stderr, "Command not recognized!\n");
                     }

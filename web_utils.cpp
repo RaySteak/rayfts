@@ -63,3 +63,18 @@ string web_utils::parse_webstring(string name, bool replace_plus)
     pos = 0;
     return name;
 }
+
+HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
+{
+    size_t pos = filepath.find_last_of('.');
+    string extension = filepath.substr(pos + 1);
+
+    if (extension == "png")
+        return HTTPresponse::MIME::png;
+    if (extension == "js")
+        return HTTPresponse::MIME::javascript;
+    if (extension == "html")
+        return HTTPresponse::MIME::html;
+    // can't guess type, just return byte stream
+    return HTTPresponse::MIME::octet_stream;
+}
