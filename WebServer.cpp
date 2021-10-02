@@ -76,7 +76,7 @@ WebServer::WebServer(int port, const char *user, const char *pass)
         char argv0[] = "/bin/7z", argv1[] = "a", argv4[] = "-mx0";
         char *const argv[] = {argv0, argv1, destination, path, argv4, NULL};
         status = posix_spawn(&pid, argv0, NULL, NULL, argv, NULL);
-        server->path_to_pid.insert({string(path + strlen("./files")), pid});
+        server->path_to_pid.insert({string(path + strlen("./")), pid});
         free(destination), free(path);
         if (status)
             return -1;
@@ -384,9 +384,9 @@ string get_action_and_truncate(string &url) // returns empty string on fail
     if (pos != std::string::npos) //check for delete
     {
         string action = url.substr(pos + 1);
-        url = url.substr(0, pos - 1);
-        std::ifstream check_exists("files" + url, std::ios::binary);
-        if (!fs::exists("files" + url))
+        url = url.substr(0, pos);
+        std::ifstream check_exists(url, std::ios::binary);
+        if (!fs::exists(url))
             return "";
         return action;
     }
@@ -422,7 +422,7 @@ HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folde
         auto response = HTTPresponse(200).content_disposition(HTTPresponse::DISP::Attachment, folder_name + ".zip").file_promise(temp_path.c_str());
         unordered_set<int> new_set;
         new_set.insert(fd);
-        string full_path = "./files" + folder_path;
+        string full_path = "./" + folder_path;
         file_futures.insert(
             {folder_path, make_tuple(new_set, async(std::launch::async, zip_folder, strdup(temp_path.c_str()), strdup(full_path.c_str()), this), response, temp_path, get_folder_size(full_path))});
         return response;
@@ -457,7 +457,11 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     if (strstr(url, ".."))
         return HTTPresponse(401)
             .file_attachment(string("Incercati sa ma hackati dar in balta va-necati"), HTTPresponse::MIME::text);
-    if (!strcmp(url, "/login"))
+    if (!strcmp(url, "/"))
+    {
+        return HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::html);
+    }
+    else if (!strcmp(url, "/login"))
     {
         switch (method)
         {
@@ -475,7 +479,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             {
                 SessionCookie *cookie = new SessionCookie();
                 cookies.insert({cookie->val(), cookie});
-                return HTTPresponse(302).cookie(cookie).location("/").file_attachment(redirect, HTTPresponse::MIME::text);
+                return HTTPresponse(302).cookie(cookie).location("/files/").file_attachment(redirect, HTTPresponse::MIME::text);
             }
             return HTTPresponse(401).file_attachment("html/login_error.html", HTTPresponse::MIME::html);
         }
@@ -505,8 +509,9 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     {
         return HTTPresponse(200).file_attachment("ico/favicon.ico", HTTPresponse::MIME::icon);
     }
-    else
+    else if (!strncmp(url, "/files/", 7))
     {
+        url_string = url_string.substr(1);
         HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
         string cookie = http_fields["Cookie"];
         char *cookie_copy = strdup(cookie.c_str());
@@ -526,7 +531,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         if (!found_login_cookie)
             return login_page;
 
-        string path = "files" + url_string;
+        string path = url_string;
         fs::directory_entry dir;
         try
         {
@@ -541,12 +546,12 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         if (!doesnt_exist)
         {
             if (fs::is_directory(dir) && url_string[url_string.length() - 1] != '/')
-                return HTTPresponse(303).location(url_string + "/").file_attachment(redirect, HTTPresponse::MIME::text);
+                return HTTPresponse(303).location("/" + url_string + "/").file_attachment(redirect, HTTPresponse::MIME::text);
         }
         else
         {
-            if (url_string[url_string.length() - 1] == '/' && fs::exists("files" + url_string.substr(0, url_string.length() - 1)))
-                return HTTPresponse(303).location(url_string.substr(0, url_string.length() - 1)).file_attachment(redirect, HTTPresponse::MIME::text);
+            if (url_string[url_string.length() - 1] == '/' && fs::exists(url_string.substr(0, url_string.length() - 1)))
+                return HTTPresponse(303).location("/" + url_string.substr(0, url_string.length() - 1)).file_attachment(redirect, HTTPresponse::MIME::text);
         }
 
         switch (method)
@@ -602,8 +607,8 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 {
                     auto fields = get_content_fields(content, "=", "&");
                     for (auto &field : fields)
-                        fs::remove_all("files" + url_string + parse_webstring(field.first, true));
-                    return HTTPresponse(303).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
+                        fs::remove_all(url_string + parse_webstring(field.first, true));
+                    return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
                 }
                 return not_found;
             }
@@ -643,12 +648,12 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                                         {
                                             string filename = content_disposition.substr(filename_pos, filename_end - filename_pos);
                                             if (!check_name(filename))
-                                                return HTTPresponse(422).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
+                                                return HTTPresponse(422).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
                                             size_t file_header_size = file_content - content + boundary_val.length() + strlen(CRLF);
                                             // clear fd so that we treat file reception separately (NOTE: this doesn't close the connection)
                                             remove_from_read(fd);
                                             unreceived_files.insert(
-                                                {fd, file_receive_data("files" + url_string + filename, boundary_val, file_content, read_size - file_header_size - header_size, total_size - read_size)});
+                                                {fd, file_receive_data(url_string + filename, boundary_val, file_content, read_size - file_header_size - header_size, total_size - read_size)});
                                             return HTTPresponse(HTTPresponse::PHONY);
                                         }
                                     }
@@ -665,22 +670,23 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             // This check is redundant if user operates from browser, because it is also performed
             // in the javascript of the site but requests might not come from browsers
             if (!check_name(folder_name))
-                return HTTPresponse(303).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
+                return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
             fs::create_directory(path + folder_name);
             //responsd with redirect (Post/Redirect/Get pattern) to avoid form resubmission
-            return HTTPresponse(303).location(url_string).file_attachment(redirect, HTTPresponse::MIME::text);
+            return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
         }
         default:
             return not_implemented;
         }
     }
+    return not_found;
 }
 
 void WebServer::run()
 {
     while (1)
     {
-        //std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
+        std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
         tmp_fds = read_fds;
         int available_requests;
         if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)
