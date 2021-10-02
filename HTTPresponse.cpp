@@ -85,6 +85,9 @@ HTTPresponse &HTTPresponse::content_type(MIME type)
     case MIME::zip:
         response += "application/zip";
         break;
+    case MIME::mp4:
+        response += "video/mp4";
+        break;
     default:
         break;
     }

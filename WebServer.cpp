@@ -384,9 +384,9 @@ string get_action_and_truncate(string &url) // returns empty string on fail
     if (pos != std::string::npos) //check for delete
     {
         string action = url.substr(pos + 1);
-        url = url.substr(0, pos);
+        url = url.substr(0, pos - 1);
         std::ifstream check_exists("files" + url, std::ios::binary);
-        if (!check_exists)
+        if (!fs::exists("files" + url))
             return "";
         return action;
     }
@@ -505,10 +505,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     {
         return HTTPresponse(200).file_attachment("ico/favicon.ico", HTTPresponse::MIME::icon);
     }
-    else if (!strncmp(url, "/.well-known/pki-validation/", 28))
-    {
-        return HTTPresponse(200).file_attachment(url + 1, HTTPresponse::MIME::text);
-    }
     else
     {
         HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
@@ -540,12 +536,17 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         {
             return HTTPresponse(422).file_attachment(string("422 Unprocessable entity"), HTTPresponse::MIME::text);
         }
-        std::ifstream file(path, std::ios::binary);
-        bool doesnt_exist = !fs::exists(dir); // file opens for both folders and files
+        //std::ifstream file(path, std::ios::binary);
+        bool doesnt_exist = !fs::exists(dir);
         if (!doesnt_exist)
         {
             if (fs::is_directory(dir) && url_string[url_string.length() - 1] != '/')
                 return HTTPresponse(303).location(url_string + "/").file_attachment(redirect, HTTPresponse::MIME::text);
+        }
+        else
+        {
+            if (url_string[url_string.length() - 1] == '/' && fs::exists("files" + url_string.substr(0, url_string.length() - 1)))
+                return HTTPresponse(303).location(url_string.substr(0, url_string.length() - 1)).file_attachment(redirect, HTTPresponse::MIME::text);
         }
 
         switch (method)
@@ -582,6 +583,10 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                         uint64_t full_size = std::get<4>(found_future->second);
                         return HTTPresponse(200).file_attachment(to_string(temp_size) + ' ' + to_string(full_size), HTTPresponse::MIME::text);
                     }
+                }
+                if (action == "play/") // used as a folder to simplify html
+                {
+                    return HTTPresponse(200).file_attachment("html/video.html", HTTPresponse::MIME::html);
                 }
                 return not_found;
             }

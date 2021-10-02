@@ -31,7 +31,8 @@ public:
         png,
         javascript,
         icon,
-        zip
+        zip,
+        mp4
     };
 
     enum class DISP
