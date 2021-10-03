@@ -23,6 +23,12 @@
 <script>
     document.title = window.location.host + window.location.pathname;
 
+    jQuery(document).ready(function ($) {
+        $(window).on('popstate', function () {
+            location.reload(true);
+        })
+    })
+
     function check() {
         var folder_name = _("folder_name").value;
         var not_allowed = ["&", "/", "%", "~", "..", "="];
