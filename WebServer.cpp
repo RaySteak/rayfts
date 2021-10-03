@@ -454,12 +454,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     auto http_fields = get_content_fields(saved, ": ", CRLF);
 
     if (strstr(url, ".."))
-        return HTTPresponse(401)
-            .file_attachment(string("Incercati sa ma hackati dar in balta va-necati"), HTTPresponse::MIME::text);
-    if (!strcmp(url, "/"))
-    {
-        return HTTPresponse(302).location("/files/").file_attachment(redirect, HTTPresponse::MIME::html);
-    }
+        return HTTPresponse(401).file_attachment(string("Incercati sa ma hackati dar in balta va-necati"), HTTPresponse::MIME::text);
     else if (!strcmp(url, "/login"))
     {
         switch (method)
@@ -478,7 +473,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             {
                 SessionCookie *cookie = new SessionCookie();
                 cookies.insert({cookie->val(), cookie});
-                return HTTPresponse(302).cookie(cookie).location("/files/").file_attachment(redirect, HTTPresponse::MIME::text);
+                return HTTPresponse(302).cookie(cookie).location("/").file_attachment(redirect, HTTPresponse::MIME::text);
             }
             return HTTPresponse(401).file_attachment("html/login_error.html", HTTPresponse::MIME::html);
         }
@@ -508,9 +503,8 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     {
         return HTTPresponse(200).file_attachment("ico/favicon.ico", HTTPresponse::MIME::icon);
     }
-    else if (!startcmp(url, "/files/"))
+    else if (!startcmp(url, "/files/") || !strcmp(url, "/"))
     {
-        url_string = url_string.substr(1);
         HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
         string cookie = http_fields["Cookie"];
         char *cookie_copy = strdup(cookie.c_str());
@@ -529,7 +523,10 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         }
         if (!found_login_cookie)
             return login_page;
+        if (!strcmp(url, "/"))
+            return HTTPresponse(200).file_attachment("html/select.html", HTTPresponse::MIME::html);
 
+        url_string = url_string.substr(1);
         string path = url_string;
         fs::directory_entry dir;
         try

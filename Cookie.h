@@ -4,7 +4,7 @@
 #include <fstream>
 #include <random>
 
-#define COOKIE_LENGTH 10
+#define COOKIE_LENGTH 30
 
 using std::ifstream;
 using std::string;
