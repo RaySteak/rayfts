@@ -31,6 +31,7 @@ public:
         text,
         png,
         javascript,
+        css,
         icon,
         zip,
         mp4

@@ -75,6 +75,8 @@ HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
         return HTTPresponse::MIME::javascript;
     if (extension == "html")
         return HTTPresponse::MIME::html;
+    if (extension == "css")
+        return HTTPresponse::MIME::css;
     // can't guess type, just return byte stream
     return HTTPresponse::MIME::octet_stream;
 }

@@ -1,0 +1,59 @@
+.card {
+	position: absolute;
+	float: left;
+	width: 300px;
+	height: 500px;
+	border: 1px solid grey;
+	background-color: lightgrey;
+	box-shadow: 5px 5px 5px grey;
+	margin: 50px;
+	border-radius: 20px;
+}
+
+.card:hover {
+	opacity: 0.4;
+	width: 350px;
+	height: 550px;
+	margin-top: +20px;
+	margin-left: +20px;
+}
+
+#card2 {
+	margin-left: 450px;
+}
+
+#card2:hover {
+	margin-left: 425px;
+}
+
+#card3 {
+	margin-left: 850px;
+}
+
+#card3:hover {
+	margin-left: 825px;
+}
+
+h1 {
+	position: absolute;
+	text-align: center;
+	margin-top: 180px;
+	font-size: 50px;
+	color: white;
+}
+
+.files {
+	background-image: url("/images/files.png");
+	background-size: cover;
+	background-repeat: no-repeat;
+	display: inline-block;
+	background-position: center;
+	background-size: 120%;
+}
+
+p {
+	color: white;
+	font-size: 20px;
+	margin: 20px;
+	padding: 50px;
+}

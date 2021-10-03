@@ -481,7 +481,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             return not_implemented;
         }
     }
-    else if (!startcmp(url, "/images/") || !startcmp(url, "/js/")) // public folders
+    else if (!startcmp(url, "/images/") || !startcmp(url, "/js/") || !startcmp(url, "/css/")) // public folders
     {
         switch (method)
         {

@@ -70,6 +70,9 @@ HTTPresponse &HTTPresponse::content_type(MIME type)
     case MIME::javascript:
         response += "text/javascript";
         break;
+    case MIME::css:
+        response += "text/css";
+        break;
     case MIME::octet_stream:
         response += "application/octet-stream";
         break;
