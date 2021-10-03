@@ -509,7 +509,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         string cookie = http_fields["Cookie"];
         char *cookie_copy = strdup(cookie.c_str());
         auto cookie_map = get_content_fields(cookie_copy, "=", ";");
-        delete cookie_copy;
+        free(cookie_copy);
         bool found_login_cookie = false;
         for (auto &[name, val] : cookie_map)
         {
