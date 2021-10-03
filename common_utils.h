@@ -27,3 +27,4 @@
 
 #define BUFLEN 8192
 #define MAX_CLIENTS 5
+#define MAX_PORT 65535
