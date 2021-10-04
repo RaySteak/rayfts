@@ -8,7 +8,6 @@
 #include <vector>
 #include <future>
 #include <functional>
-#define SERVER_DEBUG 1
 
 using std::unordered_map;
 using std::unordered_set;
