@@ -1,10 +1,10 @@
 document.title = window.location.host + window.location.pathname;
 
-jQuery(document).ready(function ($) {
-    $(window).on('popstate', function () {
-        location.reload(true);
-    })
-})
+var perfEntries = performance.getEntriesByType("navigation");
+
+if (perfEntries[0].type === "back_forward") {
+    location.reload(true);
+}
 
 function check() {
     var folder_name = _("folder_name").value;
