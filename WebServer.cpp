@@ -1,10 +1,10 @@
 #include "WebServer.h"
 #include "web_utils.h"
+#include "wake_on_lan.h"
 #include <algorithm>
 #include <set>
 #include <spawn.h>
 #include <wait.h>
-#include <sstream>
 #include <boost/filesystem.hpp>
 
 using namespace web_utils;
@@ -503,7 +503,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     {
         return HTTPresponse(200).file_attachment("ico/favicon.ico", HTTPresponse::MIME::icon);
     }
-    else if (!startcmp(url, "/files/") || !strcmp(url, "/"))
+    else if (!startcmp(url, "/files/") || !strcmp(url, "/") || !strcmp(url, "/control"))
     {
         HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
         string cookie = http_fields["Cookie"];
@@ -523,8 +523,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         }
         if (!found_login_cookie)
             return login_page;
-        if (!strcmp(url, "/"))
-            return HTTPresponse(200).file_attachment("html/select.html", HTTPresponse::MIME::html);
 
         url_string = url_string.substr(1);
         string path = url_string;
@@ -553,6 +551,14 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         switch (method)
         {
         case Method::GET:
+            if (!strcmp(url, "/"))
+                return HTTPresponse(200).file_attachment("html/select.html", HTTPresponse::MIME::html);
+            if (!strcmp(url, "/control"))
+            {
+                auto computer = wol::wake_on_lan("B4:2E:99:60:65:85");
+                computer.awaken();
+                return HTTPresponse(200).file_attachment("html/control.html", HTTPresponse::MIME::html);
+            }
             if (doesnt_exist)
             {
                 string action = get_action_and_truncate(url_string);

@@ -51,6 +51,15 @@ h1 {
 	background-size: 120%;
 }
 
+.control {
+	background-image: url("/images/control.png");
+	background-size: cover;
+	background-repeat: no-repeat;
+	display: inline-block;
+	background-position: center;
+	background-size: 120%;
+}
+
 p {
 	color: white;
 	font-size: 20px;
