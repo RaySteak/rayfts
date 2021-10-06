@@ -1,14 +1,18 @@
 #include "wake_on_lan.h"
 #include <sstream>
+#include <fstream>
 
 #define MAGIC_COUNT 16
 #define BROADCAST 0xffffffff
 #define WOL_PORT 7
+#define LISTS_LINE_MAX 200
 
 using namespace wol;
 
-wake_on_lan::wake_on_lan(std::string address)
+wake_on_lan::wake_on_lan(std::string address, std::string device_name)
 {
+    this->device_name = device_name;
+    this->mac_readable = address;
     for (size_t i = 0; i < address.size() - 1; i += 3)
     {
         std::stringstream octet;
@@ -40,4 +44,28 @@ bool wake_on_lan::awaken()
     if (ret < 0)
         return false;
     return true;
+}
+
+std::vector<wake_on_lan> wake_on_lan::parse_list(const char *filename)
+{
+    std::vector<wake_on_lan> list;
+    char buffer[LISTS_LINE_MAX];
+    std::ifstream file(filename, std::ios::in);
+    while (file.getline(buffer, LISTS_LINE_MAX))
+    {
+        char *mac = strtok(buffer, " -");
+        char *device_name = strtok(NULL, " -");
+        list.push_back({mac, device_name});
+    }
+    return list;
+}
+
+std::string &wake_on_lan::get_device_name()
+{
+    return device_name;
+}
+
+std::string wake_on_lan::get_mac_readable()
+{
+    return mac_readable;
 }

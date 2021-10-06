@@ -555,9 +555,14 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 return HTTPresponse(200).file_attachment("html/select.html", HTTPresponse::MIME::html);
             if (!strcmp(url, "/control"))
             {
-                auto computer = wol::wake_on_lan("B4:2E:99:60:65:85");
-                computer.awaken();
-                return HTTPresponse(200).file_attachment("html/control.html", HTTPresponse::MIME::html);
+                auto wol_list = wol::wake_on_lan::parse_list("WolList.txt");
+                std::ifstream control("html/control.html", std::ios::binary);
+                string response = std::string((std::istreambuf_iterator<char>(control)), std::istreambuf_iterator<char>());
+                response += "<script>";
+                for (auto &w : wol_list)
+                    response += "add_device(\"" + w.get_device_name() + "\",\"" + w.get_mac_readable() + "\");";
+                response += "</script></body></html>";
+                return HTTPresponse(200).file_attachment(response, HTTPresponse::MIME::html);
             }
             if (doesnt_exist)
             {

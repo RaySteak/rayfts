@@ -3,3 +3,4 @@ files/*
 *.o
 settings.json
 .gdb_history
+WolList.txt
