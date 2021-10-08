@@ -75,4 +75,4 @@ var update_on_states = async function() {
     }
 }
 
-//update_on_states().then();
+update_on_states().then();
