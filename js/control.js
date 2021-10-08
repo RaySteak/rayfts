@@ -34,7 +34,7 @@ var update_on_states = async function() {
                     _(on_state_id).disabled = false;
                     if (data[i] == "1" && !_(on_state_id).checked)
                         _(on_state_id).click();
-                    if (data[i] == "0" && !_(on_state_id).checked)
+                    if (data[i] == "0" && _(on_state_id).checked)
                         _(on_state_id).click();
                     _(on_state_id).disabled = true;
                 }
