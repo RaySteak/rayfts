@@ -1,4 +1,5 @@
 #include "web_utils.h"
+#include "common_utils.h"
 #include <sstream>
 
 using std::string;
@@ -79,4 +80,53 @@ HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
         return HTTPresponse::MIME::css;
     // can't guess type, just return byte stream
     return HTTPresponse::MIME::octet_stream;
+}
+
+void ping(int sockfd, in_addr ip_addr)
+{
+    /*struct packet pkt;
+    init_packet(&pkt);
+
+    struct ether_header *eth_hdr = (struct ether_header *)pkt.payload;
+    struct iphdr *ip_hdr = (struct iphdr *)(pkt.payload + IP_OFF);
+    struct icmphdr *icmp_hdr = (struct icmphdr *)(pkt.payload + ICMP_OFF);
+
+    init_eth_hdr(sockfd, eth_hdr);
+
+    char *ip_s = inet_ntoa(ip_addr);
+    printf("PING %s ...\n", ip_s);
+    pkt.size = sizeof(struct ether_header) + sizeof(struct iphdr) + sizeof(struct icmphdr) + msg_len;
+    ip_hdr->version = 4;
+    ip_hdr->daddr = ip_addr.s_addr; //cred ca asa e cum pui adresa destinatie, nu stiu daca trebuie convertita sau nu
+    ip_hdr->ttl = 255;
+    get_interface_ip(sockfd, IFNAME, &(ip_hdr->saddr)); // punem adresa sursa
+    //ip_hdr->saddr = ip_hdr->saddr;
+    ip_hdr->tot_len = htons(sizeof(struct iphdr) + sizeof(struct icmphdr) + msg_len); // punem lungimea headerului icmp
+    ip_hdr->ihl = 5;
+    ip_hdr->id = getpid() & 0xFFFF;
+    ip_hdr->tos = 0b00100000;
+    ip_hdr->protocol = 1; //setam protocolul la icmp
+    ip_hdr->frag_off = 0;
+    ip_hdr->check = 0;
+    ip_hdr->check = checksum(ip_hdr, sizeof(struct iphdr));
+    icmp_hdr->code = 0;
+    icmp_hdr->type = ICMP_ECHO;
+    icmp_hdr->un.echo.id = getpid() & 0xFFFF;
+    icmp_hdr->un.echo.sequence = i;
+    icmp_hdr->checksum = 0;
+    icmp_hdr->checksum = checksum(icmp_hdr, sizeof(struct icmphdr) + msg_len);
+
+    struct packet reply;
+    double time_elapsed = time_packet(sockfd, &pkt, &reply);
+
+    // normalize to miliseconds
+    time_elapsed = time_elapsed * 1000;
+
+    struct iphdr *rip_hdr = (struct iphdr *)(reply.payload + IP_OFF);
+    struct icmphdr *ricmp_hdr = (struct icmphdr *)(reply.payload + ICMP_OFF);
+
+    uint16_t b_recv = ntohs(rip_hdr->tot_len) - sizeof(struct icmphdr) - sizeof(struct iphdr);
+    uint16_t seq = ricmp_hdr->un.echo.sequence;
+    uint8_t ttl = rip_hdr->ttl;
+    printf("%d bytes from %s: icmp_seq=%hd ttl=%hhd time = %.1lf ms\n", b_recv, ip_s, seq, ttl, time_elapsed);*/
 }

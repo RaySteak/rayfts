@@ -18,4 +18,5 @@ namespace web_utils
     }
     std::string parse_webstring(std::string name, bool replace_plus);
     HTTPresponse::MIME guess_mime_type(std::string filepath);
+    void ping(int sockfd, struct in_addr ip_addr, int count);
 };

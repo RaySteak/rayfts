@@ -11108,6 +11108,10 @@ h5,
     color: #99b19c;
 }
 
+.checkbox-secondary {
+    background-color: #c40d20;
+}
+
 .checkbox-primary input:checked~.checkmark:after {
     color: #99b19c;
 }

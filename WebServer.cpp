@@ -378,14 +378,14 @@ bool check_name(string name)
     return true;
 }
 
-string get_action_and_truncate(string &url) // returns empty string on fail
+string get_action_and_truncate(string &url, bool check_exists = true) // returns empty string on fail
 {
     size_t pos = url.find("~");
     if (pos != std::string::npos) //check for delete
     {
         string action = url.substr(pos + 1);
         url = url.substr(0, pos);
-        if (!fs::exists(url) && !(url[url.length() - 1] == '/' && fs::exists(url.substr(0, url.length() - 1))))
+        if (check_exists && !fs::exists(url) && !(url[url.length() - 1] == '/' && fs::exists(url.substr(0, url.length() - 1))))
             return "";
         return action;
     }
@@ -521,7 +521,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 break;
             }
         }
-        if (!found_login_cookie)
+        if (!debug_mode && !found_login_cookie)
             return login_page;
 
         url_string = url_string.substr(1);
@@ -553,16 +553,23 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         case Method::GET:
             if (!strcmp(url, "/"))
                 return HTTPresponse(200).file_attachment("html/select.html", HTTPresponse::MIME::html);
-            if (!strcmp(url, "/control"))
+            if (!startcmp(url, "/control"))
             {
-                auto wol_list = wol::wake_on_lan::parse_list("WolList.txt");
-                std::ifstream control("html/control.html", std::ios::binary);
-                string response = std::string((std::istreambuf_iterator<char>(control)), std::istreambuf_iterator<char>());
-                response += "<script>";
-                for (auto &w : wol_list)
-                    response += "add_device(\"" + w.get_device_name() + "\",\"" + w.get_mac_readable() + "\");";
-                response += "</script></body></html>";
-                return HTTPresponse(200).file_attachment(response, HTTPresponse::MIME::html);
+                if (!strcmp(url, "/control"))
+                {
+                    auto wol_list = wol::wake_on_lan::parse_list("WolList.txt");
+                    std::ifstream control("html/control.html", std::ios::binary);
+                    string response = std::string((std::istreambuf_iterator<char>(control)), std::istreambuf_iterator<char>());
+                    response += "<script>";
+                    for (auto &w : wol_list)
+                        response += "add_device(\"" + w.get_device_name() + " (" + w.get_ip() + ")\",\"" + w.get_mac_readable() + "\");";
+                    response += "</script></body></html>";
+                    return HTTPresponse(200).file_attachment(response, HTTPresponse::MIME::html);
+                }
+                auto action = get_action_and_truncate(url_string, false);
+                if (action == "up")
+                {
+                }
             }
             if (doesnt_exist)
             {
@@ -790,6 +797,7 @@ void WebServer::run()
                 char *current_buffer = f.data[f.current_buffer];
                 char *prev_buffer = f.get_next_buffer();
                 uint64_t size = f.file->tellp(), bs = f.boundary.size();
+                f.file->close();
                 char temp_buffer[2 * max_alloc];
                 memcpy(temp_buffer + (max_alloc - f.prev_recv), prev_buffer, f.prev_recv);
                 memcpy(temp_buffer + max_alloc, current_buffer, f.last_recv);

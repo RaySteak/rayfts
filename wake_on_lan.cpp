@@ -9,14 +9,12 @@
 
 using namespace wol;
 
-wake_on_lan::wake_on_lan(std::string address, std::string device_name)
+void wake_on_lan::init()
 {
-    this->device_name = device_name;
-    this->mac_readable = address;
-    for (size_t i = 0; i < address.size() - 1; i += 3)
+    for (size_t i = 0; i < mac_readable.size() - 1; i += 3)
     {
         std::stringstream octet;
-        octet.str(address.substr(i, 2));
+        octet.str(mac_readable.substr(i, 2));
         int c;
         octet >> std::hex >> c;
         mac += (char)c;
@@ -24,6 +22,21 @@ wake_on_lan::wake_on_lan(std::string address, std::string device_name)
     magic = std::string(6, 0xff);
     for (int i = 0; i < MAGIC_COUNT; i++) // add required target address for magic packet
         magic += mac;
+}
+
+wake_on_lan::wake_on_lan(std::string address, std::string device_name)
+{
+    this->device_name = device_name;
+    this->mac_readable = address;
+    init();
+}
+
+wake_on_lan::wake_on_lan(std::string address, std::string device_name, std::string ip)
+{
+    this->device_name = device_name;
+    this->mac_readable = address;
+    this->ip = ip;
+    init();
 }
 
 bool wake_on_lan::awaken()
@@ -54,8 +67,9 @@ std::vector<wake_on_lan> wake_on_lan::parse_list(const char *filename)
     while (file.getline(buffer, LISTS_LINE_MAX))
     {
         char *mac = strtok(buffer, " -");
+        char *ip = strtok(NULL, " -");
         char *device_name = strtok(NULL, " -");
-        list.push_back({mac, device_name});
+        list.push_back({mac, device_name, ip});
     }
     return list;
 }
@@ -68,4 +82,9 @@ std::string &wake_on_lan::get_device_name()
 std::string wake_on_lan::get_mac_readable()
 {
     return mac_readable;
+}
+
+std::string wake_on_lan::get_ip()
+{
+    return ip;
 }
