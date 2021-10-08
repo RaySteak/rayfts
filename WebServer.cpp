@@ -503,7 +503,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     {
         return HTTPresponse(200).file_attachment("ico/favicon.ico", HTTPresponse::MIME::icon);
     }
-    else if (!startcmp(url, "/files/") || !strcmp(url, "/") || !strcmp(url, "/control"))
+    else if (!startcmp(url, "/files/") || !strcmp(url, "/") || !startcmp(url, "/control"))
     {
         HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
         string cookie = http_fields["Cookie"];
@@ -569,6 +569,33 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 auto action = get_action_and_truncate(url_string, false);
                 if (action == "up")
                 {
+                    string on_states;
+                    auto wol_list = wol::wake_on_lan::parse_list("WolList.txt");
+                    for (auto &w : wol_list)
+                    {
+                        // TODO: add a future style approach instead
+                        const unsigned int wait_ms = 10;
+                        pid_t pid;
+                        char argv0[] = "/bin/fping", argv1[] = "-c1", argv2[15] = "-t", *argv3 = strdup(w.get_ip().c_str());
+                        strcat(argv2, std::to_string(wait_ms).c_str());
+                        char *const argv[] = {argv0, argv1, argv2, argv3, NULL};
+                        string comanda;
+                        for (int i = 0; argv[i]; i++)
+                            comanda = comanda + argv[i] + " ";
+                        int status = posix_spawn(&pid, argv0, NULL, NULL, argv, NULL);
+                        free(argv3);
+                        if (status)
+                        {
+                            std::cerr << "/bin/fping not found, please install it\n";
+                            return HTTPresponse(404).file_attachment(string("Please install fping on the server\n"), HTTPresponse::MIME::text);
+                        }
+                        waitpid(pid, &status, 0);
+                        if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
+                            on_states += '1';
+                        else
+                            on_states += '0';
+                    }
+                    return HTTPresponse(200).file_attachment(on_states, HTTPresponse::MIME::text);
                 }
             }
             if (doesnt_exist)
