@@ -136,6 +136,8 @@ WebServer::Method get_method(char *data)
         return WebServer::Method::DELETE;
     if (!startcmp(data, "OPTIONS"))
         return WebServer::Method::OPTIONS;
+    if (!startcmp(data, "PATCH"))
+        return WebServer::Method::PATCH;
     return WebServer::Method::nil;
 }
 
@@ -716,6 +718,17 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             //responsd with redirect (Post/Redirect/Get pattern) to avoid form resubmission
             return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
         }
+        case Method::PATCH:
+        {
+            if (!strcmp(url, "/control"))
+            {
+                auto device = wol::wake_on_lan(string(content), ""); //TODO: create constructor without device name
+                device.awaken();
+                return HTTPresponse(200).end_header();
+            }
+            return not_implemented;
+        }
+        break;
         default:
             return not_implemented;
         }

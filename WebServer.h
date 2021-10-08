@@ -127,6 +127,7 @@ public:
         DELETE,
         CONNECT,
         OPTIONS,
+        PATCH,
         nil
     };
 

@@ -11105,7 +11105,7 @@ h5,
 /* Style the checkmark/indicator */
 
 .checkbox-primary {
-    color: #99b19c;
+    color: #750000;
 }
 
 .checkbox-secondary {
@@ -11113,5 +11113,119 @@ h5,
 }
 
 .checkbox-primary input:checked~.checkmark:after {
-    color: #99b19c;
+    color: #750000;
+}
+
+
+/* Create a custom checkbox */
+
+.checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+
+/* Create the checkmark/indicator (hidden when not checked) */
+
+.checkmark:after {
+    content: "\f0c8";
+    font-family: "FontAwesome";
+    position: absolute;
+    color: rgba(0, 0, 0, 0.1);
+    font-size: 20px;
+    margin-top: -14px;
+    -webkit-transition: 0.3s;
+    -o-transition: 0.3s;
+    transition: 0.3s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .checkmark:after {
+        -webkit-transition: none;
+        -o-transition: none;
+        transition: none;
+    }
+}
+
+
+/* Show the checkmark when checked */
+
+.checkbox-wrap input:checked~.checkmark:after {
+    display: block;
+    content: "\f14a";
+    font-family: "FontAwesome";
+    color: rgba(0, 0, 0, 0.2);
+}
+
+
+/* Style the checkmark/indicator */
+
+.checkbox-primary {
+    color: #750000;
+}
+
+.checkbox-secondary {
+    background-color: #c40d20;
+}
+
+.checkbox-primary input:checked~.checkmark:after {
+    color: #750000;
+}
+
+
+/* Create a custom checkbox */
+
+.checkmark_state {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+
+/* Create the checkmark/indicator (hidden when not checked) */
+
+.checkmark_state:after {
+    content: "\f0c8";
+    font-family: "FontAwesome";
+    position: absolute;
+    color: red;
+    font-size: 20px;
+    margin-top: -14px;
+    -webkit-transition: 0.3s;
+    -o-transition: 0.3s;
+    transition: 0.3s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .checkmark_state:after {
+        -webkit-transition: none;
+        -o-transition: none;
+        transition: none;
+    }
+}
+
+
+/* Show the checkmark when checked */
+
+.checkbox-wrap input:checked~.checkmark_state:after {
+    display: block;
+    content: "\f14a";
+    font-family: "FontAwesome";
+    color: rgba(0, 0, 0, 0.2);
+}
+
+
+/* Style the checkmark/indicator */
+
+.checkbox-primary {
+    color: #750000;
+}
+
+.checkbox-secondary {
+    background-color: #c40d20;
+}
+
+.checkbox-primary input:checked~.checkmark_state:after {
+    color: green;
 }
