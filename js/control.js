@@ -96,14 +96,14 @@ var update_on_states = async function() {
                         _(on_state_id).click();
                         var new_off = fall_asleep_button.cloneNode(true);
                         new_off.id = "fall_asleep" + id;
-                        new_off.setAttribute("onClick", "javascript: fall_asleep(" + count + ")");
+                        new_off.setAttribute("onClick", "javascript: fall_asleep(" + id + ")");
                         _("awaken" + id).replaceWith(new_off);
                     }
                     if (data[i] == "0" && _(on_state_id).checked) {
                         _(on_state_id).click();
                         var new_on = awaken_button.cloneNode(true);
                         new_on.id = "awaken" + id;
-                        new_on.setAttribute("onClick", "javascript: awaken(" + count + ")");
+                        new_on.setAttribute("onClick", "javascript: awaken(" + id + ")");
                         _("fall_asleep" + id).replaceWith(new_on);
                     }
                     _(on_state_id).disabled = true;
