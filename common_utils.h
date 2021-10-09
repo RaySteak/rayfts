@@ -4,12 +4,15 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#ifndef WIN32
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <linux/tcp.h>
 #include <signal.h>
+#endif
 #include <poll.h>
 
 #define DIE(assertion, call_description)                       \

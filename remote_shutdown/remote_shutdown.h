@@ -1,0 +1,2 @@
+#define REMOTE_SHUTDOWN_PORT 42070
+#define REMOTE_SHUTDOWN_KEYWORD "shutdown"

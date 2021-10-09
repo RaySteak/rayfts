@@ -1,6 +1,7 @@
 #include "WebServer.h"
 #include "web_utils.h"
 #include "wake_on_lan.h"
+#include "remote_shutdown/remote_shutdown.h"
 #include <algorithm>
 #include <set>
 #include <spawn.h>
@@ -581,9 +582,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                         char argv0[] = "/bin/fping", argv1[] = "-c1", argv2[15] = "-t", *argv3 = strdup(w.get_ip().c_str());
                         strcat(argv2, std::to_string(wait_ms).c_str());
                         char *const argv[] = {argv0, argv1, argv2, argv3, NULL};
-                        string comanda;
-                        for (int i = 0; argv[i]; i++)
-                            comanda = comanda + argv[i] + " ";
                         int status = posix_spawn(&pid, argv0, NULL, NULL, argv, NULL);
                         free(argv3);
                         if (status)
@@ -720,16 +718,47 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         }
         case Method::PATCH:
         {
-            if (!strcmp(url, "/control"))
+            auto fields = get_content_fields(content, "=", "&");
+            if (!strcmp(url, "/control/~awaken"))
             {
-                char *mac = strchr(content, '=');
-                if (!mac)
+                if (fields["turn_on"] == "")
                     return HTTPresponse(400).end_header();
-                auto device = wol::wake_on_lan(mac + 1);
-                device.awaken();
+                wol::wake_on_lan(fields["turn_on"]).awaken();
                 return HTTPresponse(200).file_attachment(string("Awaken command sent"), HTTPresponse::MIME::text);
             }
-            return not_implemented;
+            if (!strcmp(url, "/control/~sleep"))
+            {
+                if (fields["turn_off"] == "" || fields["ip"] == "")
+                    return HTTPresponse(400).end_header();
+                pid_t pid;
+                /*//TODO: somehow generalize the shutdown (damned windows doesn't want to set an alias)
+                char argv0[] = "/bin/ssh", argv1[] = "-l", *argv2 = strdup(fields["turn_off"].c_str()), *argv3 = strdup(fields["ip"].c_str()), argv4[] = "\"shutdown /s /t\"";
+                char *const argv[] = {argv0, argv1, argv2, argv3, argv4, NULL};
+                string command;
+                for (int i = 0; argv[i]; i++)
+                    command = command + argv[i] + ' ';
+                std::cout << "COMANDA ESTE " << command << '\n';
+                int status = posix_spawn(&pid, argv0, NULL, NULL, argv, NULL);
+                free(argv2);
+                free(argv3);
+                if (status)
+                {
+                    std::cerr << "/bin/ssh not found, please install it\n";
+                    return HTTPresponse(404).file_attachment(string("Please install fping on the server\n"), HTTPresponse::MIME::text);
+                }*/
+                int device_fd = socket(AF_INET, SOCK_STREAM, 0);
+                if (device_fd < 0)
+                    return HTTPresponse(504).end_header();
+                sockaddr_in device_address;
+                inet_aton(fields["ip"].c_str(), &device_address.sin_addr);
+                device_address.sin_port = htons(REMOTE_SHUTDOWN_PORT);
+                device_address.sin_family = AF_INET;
+                if (connect(device_fd, (sockaddr *)&device_address, sizeof(device_address)) < 0)
+                    return HTTPresponse(504).end_header();
+                send_exactly(device_fd, "poweroff", strlen("poweroff"));
+                return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);
+            }
+            return not_found;
         }
         break;
         default:
