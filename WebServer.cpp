@@ -754,7 +754,11 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 device_address.sin_family = AF_INET;
                 if (connect(device_fd, (sockaddr *)&device_address, sizeof(device_address)) < 0)
                     return HTTPresponse(504).end_header();
-                send_exactly(device_fd, REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD));
+                pollfd pfd{.fd = device_fd, .events = POLLOUT, .revents = 0}; // TODO: create generic function to use for sending files as well
+                ret = poll(&pfd, 1, 0);
+                DIE(ret < 0, "poll");
+                if (pfd.revents & POLLOUT)
+                    send_exactly(device_fd, REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD));
                 return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);
             }
             return not_found;
