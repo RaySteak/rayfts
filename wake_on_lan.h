@@ -13,7 +13,8 @@ namespace wol
         void init();
 
     public:
-        wake_on_lan(std::string address, std::string device_name); // given as XX:XX:...
+        wake_on_lan(std::string address); // given as XX:XX:...
+        wake_on_lan(std::string address, std::string device_name);
         wake_on_lan(std::string address, std::string device_name, std::string ip);
         bool awaken();
         static std::vector<wake_on_lan> parse_list(const char *filename);

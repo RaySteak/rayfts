@@ -24,6 +24,12 @@ void wake_on_lan::init()
         magic += mac;
 }
 
+wake_on_lan::wake_on_lan(std::string address)
+{
+    this->mac_readable = address;
+    init();
+}
+
 wake_on_lan::wake_on_lan(std::string address, std::string device_name)
 {
     this->device_name = device_name;

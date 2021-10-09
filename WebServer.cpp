@@ -722,9 +722,9 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         {
             if (!strcmp(url, "/control"))
             {
-                auto device = wol::wake_on_lan(string(content), ""); //TODO: create constructor without device name
+                auto device = wol::wake_on_lan(string(strchr(content, '=') + 1));
                 device.awaken();
-                return HTTPresponse(200).end_header();
+                return HTTPresponse(200).file_attachment(string("Awaken command sent"), HTTPresponse::MIME::text);
             }
             return not_implemented;
         }
