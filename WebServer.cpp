@@ -753,7 +753,10 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 device_address.sin_port = htons(REMOTE_SHUTDOWN_PORT);
                 device_address.sin_family = AF_INET;
                 if (connect(device_fd, (sockaddr *)&device_address, sizeof(device_address)) < 0)
+                {
+                    close(device_fd);
                     return HTTPresponse(504).end_header();
+                }
                 pollfd pfd{.fd = device_fd, .events = POLLOUT, .revents = 0}; // TODO: create generic function to use for sending files as well
                 ret = poll(&pfd, 1, 0);
                 DIE(ret < 0, "poll");
@@ -766,6 +769,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 {
                     std::cout << "N-AM MAI PUTUT SA TRIMITEM\n";
                 }
+                close(device_fd);
                 return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);
             }
             return not_found;
