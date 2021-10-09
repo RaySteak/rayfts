@@ -753,6 +753,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 inet_aton(fields["ip"].c_str(), &device_address.sin_addr);
                 device_address.sin_port = htons(REMOTE_SHUTDOWN_PORT);
                 device_address.sin_family = AF_INET;
+                std::cout << "IP-UL ESTE " << inet_ntoa(device_address.sin_addr);
                 std::cout << "NE CONECTAM..\n";
                 if (connect(device_fd, (sockaddr *)&device_address, sizeof(device_address)) < 0)
                 {
