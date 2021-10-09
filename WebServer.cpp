@@ -745,6 +745,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     std::cerr << "/bin/ssh not found, please install it\n";
                     return HTTPresponse(404).file_attachment(string("Please install fping on the server\n"), HTTPresponse::MIME::text);
                 }*/
+                std::cout << "LA INCEPUT\n";
                 int device_fd = socket(AF_INET, SOCK_STREAM, 0);
                 if (device_fd < 0)
                     return HTTPresponse(504).end_header();
@@ -752,16 +753,20 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 inet_aton(fields["ip"].c_str(), &device_address.sin_addr);
                 device_address.sin_port = htons(REMOTE_SHUTDOWN_PORT);
                 device_address.sin_family = AF_INET;
+                std::cout << "NE CONECTAM..\n";
                 if (connect(device_fd, (sockaddr *)&device_address, sizeof(device_address)) < 0)
                 {
                     close(device_fd);
                     return HTTPresponse(504).end_header();
                 }
+                std::cout << "NE-AM CONECTAT!\n";
                 pollfd pfd{.fd = device_fd, .events = POLLOUT, .revents = 0}; // TODO: create generic function to use for sending files as well
                 ret = poll(&pfd, 1, 0);
+                std::cout << "AM TRECUT SI DE POLL\n";
                 DIE(ret < 0, "poll");
                 if (pfd.revents & POLLOUT)
                     send_exactly(device_fd, REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD));
+                std::cout << "AM TRECUT SI DE SEND\n";
                 close(device_fd);
                 return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);
             }
