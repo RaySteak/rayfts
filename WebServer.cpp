@@ -722,7 +722,10 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         {
             if (!strcmp(url, "/control"))
             {
-                auto device = wol::wake_on_lan(string(strchr(content, '=') + 1));
+                char *mac = strchr(content, '=');
+                if (!mac)
+                    return HTTPresponse(400).end_header();
+                auto device = wol::wake_on_lan(mac + 1);
                 device.awaken();
                 return HTTPresponse(200).file_attachment(string("Awaken command sent"), HTTPresponse::MIME::text);
             }

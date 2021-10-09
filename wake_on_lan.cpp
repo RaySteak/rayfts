@@ -72,9 +72,9 @@ std::vector<wake_on_lan> wake_on_lan::parse_list(const char *filename)
     std::ifstream file(filename, std::ios::in);
     while (file.getline(buffer, LISTS_LINE_MAX))
     {
-        char *mac = strtok(buffer, " -");
-        char *ip = strtok(NULL, " -");
-        char *device_name = strtok(NULL, " -");
+        char *mac = strtok(buffer, " ");       // for wake on lan
+        char *ip = strtok(NULL, " ");          // for checking if computer is awake
+        char *device_name = strtok(NULL, " "); // also the username for ssh-ing into machine
         list.push_back({mac, device_name, ip});
     }
     return list;
