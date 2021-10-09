@@ -3,17 +3,20 @@
 #include <iostream>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 
-#ifndef WIN32
+#ifndef _WIN32
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <linux/tcp.h>
 #include <signal.h>
-#endif
 #include <poll.h>
+#else
+#include <WinSock2.h>
+#include <ws2tcpip.h>
+#endif
 
 #define DIE(assertion, call_description)                       \
     do                                                         \

@@ -1,4 +1,7 @@
 _("on_state").disabled = true;
+var awaken_button = _("awaken").cloneNode(true);
+var fall_asleep_button = _("fall_asleep").cloneNode(true);
+_("fall_asleep").remove();
 var clone_tr = _("ref_tr").cloneNode(true);
 var tbody = _("tbody");
 var count = 0;
@@ -86,12 +89,23 @@ var update_on_states = async function() {
             processData: false,
             success: function(data) {
                 for (var i = 0; i < data.length; i++) {
-                    on_state_id = "on_state" + (i + 1);
+                    var id = i + 1;
+                    on_state_id = "on_state" + id;
                     _(on_state_id).disabled = false;
-                    if (data[i] == "1" && !_(on_state_id).checked)
+                    if (data[i] == "1" && !_(on_state_id).checked) {
                         _(on_state_id).click();
-                    if (data[i] == "0" && _(on_state_id).checked)
+                        var new_off = fall_asleep_button.cloneNode(true);
+                        new_off.id = "fall_asleep" + id;
+                        new_off.setAttribute("onClick", "javascript: fall_asleep(" + count + ")");
+                        _("awaken" + id).replaceWith(new_off);
+                    }
+                    if (data[i] == "0" && _(on_state_id).checked) {
                         _(on_state_id).click();
+                        var new_on = awaken_button.cloneNode(true);
+                        new_on.id = "fall_asleep" + id;
+                        new_on.setAttribute("onClick", "javascript: awaken(" + count + ")");
+                        _("fall_asleep" + id).replaceWith(new_on);
+                    }
                     _(on_state_id).disabled = true;
                 }
             }
