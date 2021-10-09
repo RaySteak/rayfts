@@ -758,7 +758,14 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 ret = poll(&pfd, 1, 0);
                 DIE(ret < 0, "poll");
                 if (pfd.revents & POLLOUT)
+                {
+                    std::cout << "AM MAI PUTUT SA TRIMITEM\n";
                     send_exactly(device_fd, REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD));
+                }
+                else
+                {
+                    std::cout << "N-AM MAI PUTUT SA TRIMITEM\n";
+                }
                 return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);
             }
             return not_found;
