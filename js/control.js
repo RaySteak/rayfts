@@ -11,7 +11,7 @@ function add_device(device_name, mac) {
     _("device_name").id = "device_name" + (++count);
     _("mac").id = "mac" + count;
     _("on_state").id = "on_state" + count;
-    _("awaken").setAttribute("onClick", "javascript: fall_asleep(" + count + ")");
+    _("awaken").setAttribute("onClick", "javascript: awaken(" + count + ")");
     _("awaken").id = "awaken" + count;
 }
 
