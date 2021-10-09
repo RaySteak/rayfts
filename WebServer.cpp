@@ -730,7 +730,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             {
                 if (fields["turn_off"] == "" || fields["ip"] == "")
                     return HTTPresponse(400).end_header();
-                pid_t pid;
                 /*//TODO: somehow generalize the shutdown (damned windows doesn't want to set an alias)
                 char argv0[] = "/bin/ssh", argv1[] = "-l", *argv2 = strdup(fields["turn_off"].c_str()), *argv3 = strdup(fields["ip"].c_str()), argv4[] = "\"shutdown /s /t\"";
                 char *const argv[] = {argv0, argv1, argv2, argv3, argv4, NULL};

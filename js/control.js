@@ -102,7 +102,7 @@ var update_on_states = async function() {
                     if (data[i] == "0" && _(on_state_id).checked) {
                         _(on_state_id).click();
                         var new_on = awaken_button.cloneNode(true);
-                        new_on.id = "fall_asleep" + id;
+                        new_on.id = "awaken" + id;
                         new_on.setAttribute("onClick", "javascript: awaken(" + count + ")");
                         _("fall_asleep" + id).replaceWith(new_on);
                     }
