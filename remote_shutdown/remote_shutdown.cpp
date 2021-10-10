@@ -21,7 +21,7 @@ int main()
 	sockaddr_in serv_addr, cli_addr;
 	socklen_t socklen = sizeof(sockaddr_in);
 #ifndef _WIN32
-	int n, i, ret;
+	int n, ret;
 	int listenfd;
 	listenfd = socket(AF_INET, SOCK_DGRAM, 0);
 	DIE(listenfd < 0, "socket");

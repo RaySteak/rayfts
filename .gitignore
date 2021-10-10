@@ -4,4 +4,4 @@ files/*
 settings.json
 .gdb_history
 WolList.txt
-remote_shutdown
+remote_shutdown/remote_shutdown
