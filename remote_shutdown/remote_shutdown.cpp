@@ -23,7 +23,6 @@ int main()
 #ifndef _WIN32
 	int n, i, ret;
 	int listenfd, newsockfd;
-	socklen_t socklen;
 	listenfd = socket(AF_INET, SOCK_DGRAM, 0);
 	DIE(listenfd < 0, "socket");
 #else
