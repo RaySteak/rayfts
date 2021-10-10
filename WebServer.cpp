@@ -734,7 +734,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 if (fields["ip"] == "")
                     return HTTPresponse(400).end_header();
                 cli_addr.sin_family = AF_INET;
-                cli_addr.sin_port = htons(port);
+                cli_addr.sin_port = htons(REMOTE_SHUTDOWN_PORT);
                 inet_aton(fields["ip"].c_str(), &cli_addr.sin_addr);
                 sendto(udpfd, REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD), 0, (sockaddr *)&cli_addr, sizeof(cli_addr));
                 return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);

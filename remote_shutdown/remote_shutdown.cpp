@@ -19,6 +19,7 @@ int main()
 	}
 	char buffer[BUFLEN + 1];
 	sockaddr_in serv_addr, cli_addr;
+	socklen_t socklen = sizeof(sockaddr_in);
 #ifndef _WIN32
 	int n, i, ret;
 	int listenfd, newsockfd;
@@ -29,7 +30,6 @@ int main()
 	WSADATA wsaData;
 	int iResult;
 	SOCKET ListenSocket = INVALID_SOCKET;
-	SOCKET ClientSocket = INVALID_SOCKET;
 	struct addrinfo hints;
 
 	int iSendResult;
@@ -79,7 +79,7 @@ int main()
 	n = recvfrom(newsockfd, buffer, strlen(REMOTE_SHUTDOWN_KEYWORD), 0, (sockaddr *)&cli_addr, &socklen); //TODO: change to recv exactly;
 	buffer[n] = 0;
 #else
-	iResult = recvfrom(ClientSocket, buffer, strlen(REMOTE_SHUTDOWN_KEYWORD), 0, (sockaddr *)&cli_addr, &socklen);
+	iResult = recvfrom(ListenSocket, buffer, strlen(REMOTE_SHUTDOWN_KEYWORD), 0, (sockaddr *)&cli_addr, &socklen);
 	buffer[iResult] = 0;
 #endif
 	if (!strcmp(buffer, REMOTE_SHUTDOWN_KEYWORD))
