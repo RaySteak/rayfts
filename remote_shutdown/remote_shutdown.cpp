@@ -8,6 +8,9 @@
 
 #ifndef _WIN32
 #include <spawn.h>
+#else
+#pragma comment(lib, "ws2_32.lib")
+#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 #endif
 
 int main()
