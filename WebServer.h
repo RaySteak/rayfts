@@ -68,7 +68,7 @@ private:
     };
 
     string user, pass;
-    int listenfd, newsockfd, port;
+    int listenfd, newsockfd, port, udpfd;
     char buffer[BUFLEN + 1];
     struct sockaddr_in serv_addr, cli_addr;
     int n, i, ret;

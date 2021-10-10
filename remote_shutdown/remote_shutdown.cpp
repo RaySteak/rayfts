@@ -23,7 +23,7 @@ int main()
 	int n, i, ret;
 	int listenfd, newsockfd;
 	socklen_t socklen;
-	listenfd = socket(AF_INET, SOCK_STREAM, 0);
+	listenfd = socket(AF_INET, SOCK_DGRAM, 0);
 	DIE(listenfd < 0, "socket");
 #else
 	WSADATA wsaData;
@@ -43,7 +43,7 @@ int main()
 		return 1;
 	}
 	// Create a SOCKET for connecting to server
-	ListenSocket = socket(AF_INET, SOCK_STREAM, 0);
+	ListenSocket = socket(AF_INET, SOCK_DGRAM, 0);
 	if (ListenSocket == INVALID_SOCKET)
 	{
 		printf("socket failed with error: %ld\n", WSAGetLastError());
@@ -64,7 +64,7 @@ int main()
 	ret = bind(listenfd, (sockaddr *)&serv_addr, sizeof(sockaddr));
 	DIE(ret < 0, "bind");
 #else
-	// Setup the TCP listening socket
+	// Setup the UDP listening socket
 	iResult = bind(ListenSocket, (sockaddr *)&serv_addr, sizeof(serv_addr));
 	if (iResult == SOCKET_ERROR)
 	{
@@ -76,41 +76,11 @@ int main()
 #endif
 
 #ifndef _WIN32
-	ret = listen(listenfd, MAX_CLIENTS);
-	DIE(ret < 0, "listen");
-
-	pollfd pfd{.fd = listenfd, .events = POLLIN, .revents = 0};
-	ret = poll(&pfd, 1, -1);
-	DIE(ret < 0, "poll");
-
-	newsockfd = accept(listenfd, (sockaddr *)&cli_addr, &socklen);
-#else
-	iResult = listen(ListenSocket, SOMAXCONN);
-	if (iResult == SOCKET_ERROR)
-	{
-		printf("listen failed with error: %d\n", WSAGetLastError());
-		closesocket(ListenSocket);
-		WSACleanup();
-		return 1;
-	}
-
-	// Accept a client socket
-	ClientSocket = accept(ListenSocket, NULL, NULL);
-	if (ClientSocket == INVALID_SOCKET)
-	{
-		printf("accept failed with error: %d\n", WSAGetLastError());
-		closesocket(ListenSocket);
-		WSACleanup();
-		return 1;
-	}
-#endif
-#ifndef _WIN32
-	n = recv(newsockfd, buffer, strlen(REMOTE_SHUTDOWN_KEYWORD), 0); //TODO: change to recv exactly;
+	n = recvfrom(newsockfd, buffer, strlen(REMOTE_SHUTDOWN_KEYWORD), 0, (sockaddr *)&cli_addr, &socklen); //TODO: change to recv exactly;
 	buffer[n] = 0;
 #else
-	iResult = recv(ClientSocket, buffer, strlen(REMOTE_SHUTDOWN_KEYWORD), 0);
+	iResult = recvfrom(ClientSocket, buffer, strlen(REMOTE_SHUTDOWN_KEYWORD), 0, (sockaddr *)&cli_addr, &socklen);
 	buffer[iResult] = 0;
-	std::cout << strlen(buffer) << buffer;
 #endif
 	if (!strcmp(buffer, REMOTE_SHUTDOWN_KEYWORD))
 	{

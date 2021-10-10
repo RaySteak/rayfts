@@ -63,6 +63,9 @@ void WebServer::init_server_params(int port, const char *user, const char *pass)
             exit(1);
         }
     }
+
+    udpfd = socket(AF_INET, SOCK_DGRAM, 0);
+    DIE(udpfd < 0, "socket");
 }
 
 WebServer::WebServer(int port, const char *user, const char *pass)
@@ -728,47 +731,12 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             }
             if (!strcmp(url, "/control/~sleep"))
             {
-                if (fields["turn_off"] == "" || fields["ip"] == "")
+                if (fields["ip"] == "")
                     return HTTPresponse(400).end_header();
-                /*//TODO: somehow generalize the shutdown (damned windows doesn't want to set an alias)
-                char argv0[] = "/bin/ssh", argv1[] = "-l", *argv2 = strdup(fields["turn_off"].c_str()), *argv3 = strdup(fields["ip"].c_str()), argv4[] = "\"shutdown /s /t\"";
-                char *const argv[] = {argv0, argv1, argv2, argv3, argv4, NULL};
-                string command;
-                for (int i = 0; argv[i]; i++)
-                    command = command + argv[i] + ' ';
-                std::cout << "COMANDA ESTE " << command << '\n';
-                int status = posix_spawn(&pid, argv0, NULL, NULL, argv, NULL);
-                free(argv2);
-                free(argv3);
-                if (status)
-                {
-                    std::cerr << "/bin/ssh not found, please install it\n";
-                    return HTTPresponse(404).file_attachment(string("Please install fping on the server\n"), HTTPresponse::MIME::text);
-                }*/
-                std::cout << "LA INCEPUT\n";
-                int device_fd = socket(AF_INET, SOCK_STREAM, 0);
-                if (device_fd < 0)
-                    return HTTPresponse(504).end_header();
-                sockaddr_in device_address;
-                inet_aton(fields["ip"].c_str(), &device_address.sin_addr);
-                device_address.sin_port = htons(REMOTE_SHUTDOWN_PORT);
-                device_address.sin_family = AF_INET;
-                std::cout << "IP-UL ESTE " << inet_ntoa(device_address.sin_addr);
-                std::cout << "NE CONECTAM..\n";
-                if (connect(device_fd, (sockaddr *)&device_address, sizeof(device_address)) < 0)
-                {
-                    close(device_fd);
-                    return HTTPresponse(504).end_header();
-                }
-                std::cout << "NE-AM CONECTAT!\n";
-                pollfd pfd{.fd = device_fd, .events = POLLOUT, .revents = 0}; // TODO: create generic function to use for sending files as well
-                ret = poll(&pfd, 1, 0);
-                std::cout << "AM TRECUT SI DE POLL\n";
-                DIE(ret < 0, "poll");
-                if (pfd.revents & POLLOUT)
-                    send_exactly(device_fd, REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD));
-                std::cout << "AM TRECUT SI DE SEND\n";
-                close(device_fd);
+                cli_addr.sin_family = AF_INET;
+                cli_addr.sin_port = htons(port);
+                inet_aton(fields["ip"].c_str(), &cli_addr.sin_addr);
+                sendto(udpfd, REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD), 0, (sockaddr *)&cli_addr, sizeof(cli_addr));
                 return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);
             }
             return not_found;
@@ -997,4 +965,5 @@ WebServer::~WebServer()
         delete c;
     for (auto &[path, pid] : path_to_pid)
         kill(pid, SIGKILL);
+    close(udpfd);
 }

@@ -64,7 +64,7 @@ function fall_asleep(id) {
         },
         url: window.location.pathname + "/~sleep",
         type: "PATCH",
-        data: "turn_off=" + get_name_from_device(_("device_name" + id).innerHTML) + "&ip=" + get_ip_from_device(_("device_name" + id).innerHTML),
+        data: "ip=" + get_ip_from_device(_("device_name" + id).innerHTML),
         processData: false,
         success: function(data) {
             //
