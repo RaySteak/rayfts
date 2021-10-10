@@ -1,6 +1,9 @@
 #include "web_utils.h"
 #include "common_utils.h"
 #include <sstream>
+#include <boost/filesystem.hpp>
+
+namespace fs = boost::filesystem;
 
 using std::string;
 using std::to_string;
@@ -80,4 +83,42 @@ HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
         return HTTPresponse::MIME::css;
     // can't guess type, just return byte stream
     return HTTPresponse::MIME::octet_stream;
+}
+
+bool web_utils::check_name(string name, const char *not_allowed)
+{
+    if (name.length() > 255 || name.find("..") != std::string::npos) // don't allow this by default to prevent path injection
+        return false;
+    for (auto &c : name)
+    {
+        if (strchr(not_allowed, c))
+            return false;
+    }
+    return true;
+}
+
+uint64_t web_utils::get_folder_size(string folder_path)
+{
+    uint64_t size = 0LL;
+    for (fs::recursive_directory_iterator it(folder_path), end; it != end; it++)
+    {
+        auto entry = fs::directory_entry(it->path());
+        if (fs::is_regular_file(entry))
+            size += fs::file_size(entry);
+    }
+    return size;
+}
+
+string web_utils::get_action_and_truncate(string &url, bool check_exists) // returns empty string on fail
+{
+    size_t pos = url.find("~");
+    if (pos != std::string::npos) //check for delete
+    {
+        string action = url.substr(pos + 1);
+        url = url.substr(0, pos);
+        if (check_exists && !fs::exists(url) && !(url[url.length() - 1] == '/' && fs::exists(url.substr(0, url.length() - 1))))
+            return "";
+        return action;
+    }
+    return "";
 }

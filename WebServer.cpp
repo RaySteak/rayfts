@@ -372,44 +372,6 @@ string generate_folder_html(string path)
     return folder;
 }
 
-bool check_name(string name)
-{
-    if (name.length() > 255 || name.find("..") != std::string::npos)
-        return false;
-    for (auto &c : name)
-    {
-        if (strchr("&/%~=", c)) // list of characters not accepted
-            return false;
-    }
-    return true;
-}
-
-string get_action_and_truncate(string &url, bool check_exists = true) // returns empty string on fail
-{
-    size_t pos = url.find("~");
-    if (pos != std::string::npos) //check for delete
-    {
-        string action = url.substr(pos + 1);
-        url = url.substr(0, pos);
-        if (check_exists && !fs::exists(url) && !(url[url.length() - 1] == '/' && fs::exists(url.substr(0, url.length() - 1))))
-            return "";
-        return action;
-    }
-    return "";
-}
-
-uint64_t get_folder_size(string folder_path)
-{
-    uint64_t size = 0LL;
-    for (fs::recursive_directory_iterator it(folder_path), end; it != end; it++)
-    {
-        auto entry = fs::directory_entry(it->path());
-        if (fs::is_regular_file(entry))
-            size += fs::file_size(entry);
-    }
-    return size;
-}
-
 HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folder_path, string folder_name)
 {
     auto file_future_it = fd_to_file_futures.find(fd);

@@ -40,18 +40,17 @@ function uploadFile() {
     var fd = new FormData();
     fd.append('file', _("file1").files[0]);
     $.ajax({
-        xhr: function () {
+        xhr: function() {
             var xhr = new window.XMLHttpRequest();
 
-            xhr.upload.addEventListener("progress", function (evt) {
+            xhr.upload.addEventListener("progress", function(evt) {
                 if (evt.lengthComputable) {
                     var percentComplete = evt.loaded / evt.total;
                     percentComplete = parseInt(percentComplete * 100);
                     console.log(percentComplete);
                     _("progressBar").value = percentComplete;
                     _("uploaded_text").innerHTML = percentComplete + "%";
-                    if (percentComplete === 100) {
-                    }
+                    if (percentComplete === 100) {}
 
                 }
             }, false);
@@ -63,7 +62,7 @@ function uploadFile() {
         data: fd,
         processData: false,
         contentType: false,
-        success: function (result) {
+        success: function(result) {
             done_uploading().then();
         }
     });
@@ -76,12 +75,13 @@ async function zipCheck(id) {
     td.appendChild(canvas);
     _("row" + id).appendChild(td);
     var ctx = canvas.getContext('2d');
-    var size = 20, linewidth = 4;
+    var size = 20,
+        linewidth = 4;
     canvas.width = canvas.height = size;
     var folder_name = _("row" + id).firstChild.nextSibling.firstChild.title; // !!! this will change if structure of table changes !!!
     console.log(window.location.pathname + folder_name + "~/check");
     var nr_fails = 0;
-    var drawCircle = function (percentage) {
+    var drawCircle = function(percentage) {
         ctx.clearRect(0, 0, size, size);
         ctx.beginPath();
         ctx.strokeStyle = '#efefef';
@@ -94,9 +94,9 @@ async function zipCheck(id) {
     }
     while (true) {
         $.ajax({
-            xhr: function () {
+            xhr: function() {
                 var xhr = new XMLHttpRequest();
-                xhr.onreadystatechange = function () {
+                xhr.onreadystatechange = function() {
                     if (xhr.readyState == 2) {
                         xhr.responseType = "text";
                         if (xhr.status != "200")
@@ -108,15 +108,15 @@ async function zipCheck(id) {
             url: window.location.pathname + folder_name + "/~check",
             type: "GET",
             processData: false,
-            success: function (data) {
+            success: function(data) {
                 const sizes = data.split(" ");
                 var cur_size = parseInt(sizes[0]);
                 var total_size = parseInt(sizes[1]);
                 percentage = cur_size / total_size;
-                requestAnimationFrame(function () { drawCircle(percentage) });
+                requestAnimationFrame(function() { drawCircle(percentage) });
             }
         });
-        if (nr_fails >= 2)
+        if (nr_fails >= 3)
             break;
         await sleep(200);
     }
@@ -126,7 +126,7 @@ async function zipCheck(id) {
     _("row" + id).removeChild(td);
 }
 
-window.onload = function () {
+window.onload = function() {
     var used = Number(_("used_space").innerHTML);
     var available = Number(_('free_space').innerHTML);
     _("free_space").remove();
@@ -144,7 +144,7 @@ window.onload = function () {
     el.appendChild(document.createElement('br'));
     var span = document.createElement('span');
     span.textContent = Math.round((used / Math.pow(2, 30)) * 100) / 100 + " / " + Math.round(available / Math.pow(2, 30));
-    if (typeof (G_vmlCanvasManager) !== 'undefined') {
+    if (typeof(G_vmlCanvasManager) !== 'undefined') {
         G_vmlCanvasManager.initElement(canvas);
     }
     var ctx = canvas.getContext('2d');
@@ -157,7 +157,7 @@ window.onload = function () {
     ctx.translate(options.size / 2, options.size / 2);
     ctx.rotate((-1 / 2 + options.rotate / 180) * Math.PI);
     var radius = (options.size - options.lineWidth) / 2;
-    var drawDoubleCircle = function (bg_color, lineWidth, bg_percent, fg_percent, current) {
+    var drawDoubleCircle = function(bg_color, lineWidth, bg_percent, fg_percent, current) {
         ctx.clearRect(-options.size / 2, -options.size / 2, options.size, options.size);
         ctx.beginPath();
         ctx.arc(0, 0, radius, 0, Math.PI * 2 * current / bg_percent, false);
@@ -171,7 +171,7 @@ window.onload = function () {
         ctx.arc(0, 0, radius, 0, Math.PI * 2 * current / bg_percent * fg_percent / 100, false);
         ctx.stroke();
         if (current < bg_percent) {
-            requestAnimationFrame(function () {
+            requestAnimationFrame(function() {
                 drawDoubleCircle(bg_color, lineWidth, bg_percent, fg_percent, current + 1);
             });
         }
