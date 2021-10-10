@@ -22,7 +22,7 @@ int main()
 	socklen_t socklen = sizeof(sockaddr_in);
 #ifndef _WIN32
 	int n, i, ret;
-	int listenfd, newsockfd;
+	int listenfd;
 	listenfd = socket(AF_INET, SOCK_DGRAM, 0);
 	DIE(listenfd < 0, "socket");
 #else
@@ -75,7 +75,7 @@ int main()
 #endif
 
 #ifndef _WIN32
-	n = recvfrom(newsockfd, buffer, strlen(REMOTE_SHUTDOWN_KEYWORD), 0, (sockaddr *)&cli_addr, &socklen); //TODO: change to recv exactly;
+	n = recvfrom(listenfd, buffer, strlen(REMOTE_SHUTDOWN_KEYWORD), 0, (sockaddr *)&cli_addr, &socklen); //TODO: change to recv exactly;
 	buffer[n] = 0;
 #else
 	iResult = recvfrom(ListenSocket, buffer, strlen(REMOTE_SHUTDOWN_KEYWORD), 0, (sockaddr *)&cli_addr, &socklen);
