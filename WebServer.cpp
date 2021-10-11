@@ -8,6 +8,8 @@
 #include <wait.h>
 #include <boost/filesystem.hpp>
 
+#define IF_IS
+
 using namespace web_utils;
 using std::async;
 using std::make_pair;
@@ -467,9 +469,9 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             return not_implemented;
         }
     }
-    else if (!strcmp(url, "/favicon.ico"))
+    else if (!strcmp(url, "/favicon.ico") || !strcmp(url, "/apple-touch-icon"))
     {
-        return HTTPresponse(200).file_attachment("ico/favicon.ico", HTTPresponse::MIME::icon);
+        return HTTPresponse(303).location("/images" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
     }
     else if (!startcmp(url, "/files/") || !strcmp(url, "/") || !startcmp(url, "/control"))
     {
