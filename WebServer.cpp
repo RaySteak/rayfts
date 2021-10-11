@@ -469,11 +469,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             return not_implemented;
         }
     }
-    else if (!strcmp(url, "/favicon.ico") || !strcmp(url, "/apple-touch-icon"))
-    {
-        return HTTPresponse(303).location("/images" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
-    }
-    else if (!startcmp(url, "/files/") || !strcmp(url, "/") || !startcmp(url, "/control"))
+    else if (!startcmp(url, "/files/") || !strcmp(url, "/") || !startcmp(url, "/control")) // private stuff that requires passwords
     {
         HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
         string cookie = http_fields["Cookie"];
