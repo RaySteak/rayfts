@@ -22,4 +22,5 @@ namespace web_utils
     bool check_name(std::string name, const char *not_allowed = "&/%~="); //default list of characters not accepted
     uint64_t get_folder_size(std::string folder_path);
     std::string get_action_and_truncate(std::string &url, bool check_exists = true);
+    std::string generate_folder_html(std::string path, const unsigned int max_name_length = 30);
 };

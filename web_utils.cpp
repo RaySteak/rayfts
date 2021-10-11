@@ -2,12 +2,17 @@
 #include "common_utils.h"
 #include <sstream>
 #include <boost/filesystem.hpp>
+#include <set>
 
 namespace fs = boost::filesystem;
 
+using std::set;
 using std::string;
 using std::to_string;
 using std::unordered_map;
+using web_utils::add_image;
+using web_utils::add_table_image;
+using web_utils::human_readable;
 
 unordered_map<string, string> web_utils::get_content_fields(char *content, const char *is, const char *separators)
 {
@@ -81,6 +86,8 @@ HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
         return HTTPresponse::MIME::html;
     if (extension == "css")
         return HTTPresponse::MIME::css;
+    if (extension == "mp4")
+        return HTTPresponse::MIME::mp4;
     // can't guess type, just return byte stream
     return HTTPresponse::MIME::octet_stream;
 }
@@ -121,4 +128,52 @@ string web_utils::get_action_and_truncate(string &url, bool check_exists) // ret
         return action;
     }
     return "";
+}
+
+string web_utils::generate_folder_html(string path, const unsigned int max_name_length)
+{
+    //TODO: resize PNGs used for this to smaller resolutions
+    auto cmp = [](fs::directory_entry a, fs::directory_entry b)
+    { return a.path().filename().string() < b.path().filename().string(); };
+    set<fs::directory_entry, decltype(cmp)> entries(cmp);
+    for (auto &entry : fs::directory_iterator(path))
+        entries.insert(entry);
+    std::ifstream header("html/table_header.html", std::ios::binary);
+    string folder = std::string((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+    header.close();
+    int i = 0;
+    for (auto &file : entries)
+    {
+        folder += "<tr style=\"background-color:#" + (i % 2 ? string("FFFFFF") : string("808080")) + "\" id=row" + to_string(i) + ">";
+        string size, filename = file.path().filename().string(), short_filename = filename.substr(0, max_name_length) + (filename.length() > max_name_length ? " ...  " : "  ");
+        constexpr char tdbeg[] = "<td><a href=\"";
+        constexpr char tdend[] = "</a></td>";
+        string title = "title=\"" + filename + "\">";
+        if (!fs::is_directory(file))
+        {
+            size = human_readable(fs::file_size(file));
+            folder += add_table_image("file.png");
+            folder += tdbeg + filename + "\" " + title + short_filename +
+                      (guess_mime_type(filename) == HTTPresponse::MIME::mp4 ? "</a><a href=\"" + filename + "/~play/\">" + add_image("play.png") : "") +
+                      tdend;
+        }
+        else
+        {
+            size = "-";
+            folder += add_table_image("folder.png");
+            folder += tdbeg + filename + "/\" " + title + short_filename +
+                      "</a><a href=\"" + filename + "/~archive\" onclick=\"zipCheck('" + to_string(i) + "')\">" + add_image("download.png") +
+                      tdend;
+        }
+        folder += "<td>" + size + "</td>";
+        folder += "<td><input type=\"checkbox\" name=\"" + filename + "\"></td> ";
+        folder += "</tr>";
+        i++;
+    }
+    std::ifstream footer("html/table_footer.html", std::ios::binary);
+    folder += std::string((std::istreambuf_iterator<char>(footer)), std::istreambuf_iterator<char>());
+    auto stat = fs::space("files/");
+    folder += "<p hidden id=free_space>" + to_string(stat.free) + "</p><p hidden id=used_space>" + to_string(stat.capacity - stat.free) + "</p>";
+    folder += "</body></html>";
+    return folder;
 }

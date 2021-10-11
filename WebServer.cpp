@@ -327,53 +327,6 @@ void WebServer::add_to_read(int fd)
     fdmax = fd > fdmax ? fd : fdmax;
 }
 
-string generate_folder_html(string path)
-{
-    //TODO: resize PNGs used for this to smaller resolutions
-    const int max_name_length = 30;
-    auto cmp = [](fs::directory_entry a, fs::directory_entry b)
-    { return a.path().filename().string() < b.path().filename().string(); };
-    set<fs::directory_entry, decltype(cmp)> entries(cmp);
-    for (auto &entry : fs::directory_iterator(path))
-        entries.insert(entry);
-    std::ifstream header("html/table_header.html", std::ios::binary);
-    string folder = std::string((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
-    header.close();
-    int i = 0;
-    for (auto &file : entries)
-    {
-        folder += "<tr style=\"background-color:#" + (i % 2 ? string("FFFFFF") : string("808080")) + "\" id=row" + to_string(i) + ">";
-        string size, filename = file.path().filename().string(), short_filename = filename.substr(0, max_name_length) + (filename.length() > max_name_length ? " ...  " : "  ");
-        constexpr char tdbeg[] = "<td><a href=\"";
-        constexpr char tdend[] = "</a></td>";
-        string title = "title=\"" + filename + "\">";
-        if (!fs::is_directory(file))
-        {
-            size = human_readable(fs::file_size(file));
-            folder += add_table_image("file.png");
-            folder += tdbeg + filename + "\" " + title + short_filename + tdend;
-        }
-        else
-        {
-            size = "-";
-            folder += add_table_image("folder.png");
-            folder += tdbeg + filename + "/\" " + title + short_filename +
-                      "</a><a href=\"" + filename + "/~archive\" onclick=\"zipCheck('" + to_string(i) + "')\">" +
-                      add_image("download.png") + tdend;
-        }
-        folder += "<td>" + size + "</td>";
-        folder += "<td><input type=\"checkbox\" name=\"" + filename + "\"></td> ";
-        folder += "</tr>";
-        i++;
-    }
-    std::ifstream footer("html/table_footer.html", std::ios::binary);
-    folder += std::string((std::istreambuf_iterator<char>(footer)), std::istreambuf_iterator<char>());
-    auto stat = fs::space("files/");
-    folder += "<p hidden id=free_space>" + to_string(stat.free) + "</p><p hidden id=used_space>" + to_string(stat.capacity - stat.free) + "</p>";
-    folder += "</body></html>";
-    return folder;
-}
-
 HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folder_path, string folder_name)
 {
     auto file_future_it = fd_to_file_futures.find(fd);
