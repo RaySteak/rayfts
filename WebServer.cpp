@@ -860,7 +860,7 @@ void WebServer::run()
                         std::cout << "Pregatim raspunsul...\n";
                         HTTPresponse response = process_http_request(data, header_size, n, total, i);
                         std::cout << "Trimitem raspunsul\n";
-                        std::cout << response;
+                        //std::cout << response;
                         if (response.is_phony())
                             continue;
                         if (!response.is_promise_transfer())
