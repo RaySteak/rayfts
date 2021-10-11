@@ -449,7 +449,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             return not_implemented;
         }
     }
-    else if (!startcmp(url, "/images/") || !startcmp(url, "/js/") || !startcmp(url, "/css/")) // public folders
+    else if (!startcmp(url, "/images/") || !startcmp(url, "/js/") || !startcmp(url, "/css/") || !startcmp(url, "/.well-known/pki-validation/")) // public folders
     {
         switch (method)
         {
