@@ -14,6 +14,9 @@ HTTPresponse::HTTPresponse(int code)
     case 200:
         response += "OK";
         break;
+    case 206:
+        response += "Partial Content";
+        break;
     case 302:
         response += "Found";
         break;
@@ -146,9 +149,10 @@ HTTPresponse &HTTPresponse::file_attachment(string data, MIME type)
     return *this;
 }
 
-HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type)
+HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type, uint64_t begin_offset)
 {
     this->filename_str = filename;
+    this->begin_offset = begin_offset;
     attach_file(type);
     return *this;
 }
@@ -166,7 +170,7 @@ HTTPresponse &HTTPresponse::attach_file(MIME type)
     is_promise = false;
     std::ifstream file(filename_str, std::ios::binary);
     auto beg = file.tellg();
-    uint64_t total = file.seekg(0, std::ios::end).tellg() - beg;
+    uint64_t total = file.seekg(0, std::ios::end).tellg() - beg - begin_offset;
     content_type(type).content_length(total).end_header();
     return *this;
 }
@@ -185,7 +189,17 @@ HTTPresponse &HTTPresponse::access_control(string control)
     return *this;
 }
 
-HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, size_t max_fragment_size)
+HTTPresponse &HTTPresponse::content_range(uint64_t begin_offset)
+{
+    this->begin_offset = begin_offset;
+    std::ifstream file(filename_str, std::ios::binary);
+    auto beg = file.tellg();
+    uint64_t total = file.seekg(0, std::ios::end).tellg() - beg;
+    response += "Content-Range: bytes " + to_string(begin_offset) + "-" + to_string(total - 1) + "/" + to_string(total) + CRLF;
+    return *this;
+}
+
+HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, size_t max_fragment_size, uint64_t begin_offset)
 {
     this->max_fragment_size = send_fragment_size = max_fragment_size;
     file = new std::ifstream(parent->filename_str, std::ios::binary);
@@ -194,7 +208,7 @@ HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, s
     action_object = parent->action_object;
     auto beg = file->tellg();
     remaining = file->seekg(0, std::ios::end).tellg() - beg;
-    file->seekg(0, std::ios::beg);
+    file->seekg(begin_offset, std::ios::beg);
     file_data.fragment = new char[max_fragment_size];
     (*this)++;
 }
@@ -245,7 +259,7 @@ HTTPresponse::filesegment_iterator::data *HTTPresponse::filesegment_iterator::op
 
 HTTPresponse::filesegment_iterator HTTPresponse::begin_file_transfer(size_t fragment_size)
 {
-    return filesegment_iterator(this, fragment_size);
+    return filesegment_iterator(this, fragment_size, begin_offset);
 }
 
 string HTTPresponse::get_filename()

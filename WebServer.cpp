@@ -7,6 +7,7 @@
 #include <spawn.h>
 #include <wait.h>
 #include <boost/filesystem.hpp>
+#include <sstream>
 
 #define IF_IS
 
@@ -553,7 +554,22 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 return not_found;
             }
             if (!fs::is_directory(dir))
-                return HTTPresponse(200).file_attachment(path.c_str(), HTTPresponse::MIME::octet_stream);
+            {
+                uint64_t begin_offset = 0;
+                if (http_fields["Range"] != "") // check if browser wants a start range
+                {
+                    char *copy = strdup(http_fields["Range"].c_str());
+                    auto range_fields = get_content_fields(copy, "=", ";");
+                    std::stringstream nr(range_fields["bytes"]);
+                    nr >> begin_offset;
+                    free(copy);
+                    return HTTPresponse(206).file_promise(path.c_str()).content_range(begin_offset).attach_file(HTTPresponse::MIME::octet_stream);
+                }
+                else
+                {
+                    return HTTPresponse(200).file_attachment(path.c_str(), HTTPresponse::MIME::octet_stream);
+                }
+            }
             return HTTPresponse(200).file_attachment(generate_folder_html(path), HTTPresponse::MIME::html);
         case Method::POST:
         {
@@ -666,7 +682,7 @@ void WebServer::run()
 {
     while (1)
     {
-        std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
+        //std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
         tmp_fds = read_fds;
         int available_requests;
         if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)
@@ -844,7 +860,7 @@ void WebServer::run()
                         std::cout << "Pregatim raspunsul...\n";
                         HTTPresponse response = process_http_request(data, header_size, n, total, i);
                         std::cout << "Trimitem raspunsul\n";
-                        //std::cout << response;
+                        std::cout << response;
                         if (response.is_phony())
                             continue;
                         if (!response.is_promise_transfer())
