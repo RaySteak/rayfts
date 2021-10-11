@@ -88,6 +88,8 @@ HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
         return HTTPresponse::MIME::css;
     if (extension == "mp4")
         return HTTPresponse::MIME::mp4;
+    if (extension == "mkv")
+        return HTTPresponse::MIME::mkv;
     // can't guess type, just return byte stream
     return HTTPresponse::MIME::octet_stream;
 }
@@ -151,10 +153,11 @@ string web_utils::generate_folder_html(string path, const unsigned int max_name_
         string title = "title=\"" + filename + "\">";
         if (!fs::is_directory(file))
         {
+            HTTPresponse::MIME type = guess_mime_type(filename);
             size = human_readable(fs::file_size(file));
             folder += add_table_image("file.png");
             folder += tdbeg + filename + "\" " + title + short_filename +
-                      (guess_mime_type(filename) == HTTPresponse::MIME::mp4 ? "</a><a href=\"" + filename + "/~play/\">" + add_image("play.png") : "") +
+                      (type == HTTPresponse::MIME::mp4 || type == HTTPresponse::MIME::mkv ? "</a><a href=\"" + filename + "/~play/\">" + add_image("play.png") : "") +
                       tdend;
         }
         else

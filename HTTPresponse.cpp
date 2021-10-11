@@ -91,6 +91,9 @@ HTTPresponse &HTTPresponse::content_type(MIME type)
     case MIME::mp4:
         response += "video/mp4";
         break;
+    case MIME::mkv:
+        response += "video/x-matroska";
+        break;
     default:
         break;
     }
