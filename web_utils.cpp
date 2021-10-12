@@ -165,7 +165,7 @@ string web_utils::generate_folder_html(string path, const unsigned int max_name_
             size = "-";
             folder += add_table_image("folder.png");
             folder += tdbeg + filename + "/\" " + title + short_filename +
-                      "</a><a href=\"" + filename + "/~archive\" onclick=\"zipCheck('" + to_string(i) + "')\" download>" + add_image("download.png") +
+                      "</a><a href=\"" + filename + "/~archive\" onclick=\"zipCheck('" + to_string(i) + "')\">" + add_image("download.png") +
                       tdend;
         }
         folder += "<td>" + size + "</td>";
