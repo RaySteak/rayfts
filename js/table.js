@@ -69,6 +69,10 @@ function uploadFile() {
 }
 
 async function zipCheck(id) {
+    var filename_td = _("row" + id).firstChild.nextSibling;
+    console.log(filename_td.title);
+    var button = filename_td.firstChild.nextSibling; // !!! this will change if structure of table changes !!!
+    button.remove(); // disable button
     var td = document.createElement('td');
     var canvas = document.createElement('canvas');
     canvas.className = "inline_canvas";
@@ -78,7 +82,7 @@ async function zipCheck(id) {
     var size = 20,
         linewidth = 4;
     canvas.width = canvas.height = size;
-    var folder_name = _("row" + id).firstChild.nextSibling.firstChild.title; // !!! this will change if structure of table changes !!!
+    var folder_name = filename_td.firstChild.title; // this as well
     console.log(window.location.pathname + folder_name + "~/check");
     var nr_fails = 0;
     var drawCircle = function(percentage) {
@@ -124,6 +128,7 @@ async function zipCheck(id) {
     requestAnimationFrame(drawCircle);
     await sleep(200);
     _("row" + id).removeChild(td);
+    filename_td.appendChild(button); // add button back
 }
 
 window.onload = function() {
