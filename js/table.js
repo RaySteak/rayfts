@@ -6,6 +6,33 @@ if (perfEntries[0].type === "back_forward") {
     location.reload(true);
 }
 
+async function downloadZip(id) {
+    //TODO: cleanup this function, take out the useless trial stuff
+    //_("hidden_frame" + id).remove(); / / remove any frame created by previous calls
+    var filename_td = _("row" + id).firstChild.nextSibling;
+    var folder_name = filename_td.firstChild.title;
+    folder_name += "/~archive";
+    var url = window.location.pathname + folder_name;
+    var iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+    iframe.setAttribute("style", "position: absolute;width:0;height:0;border:0;");
+    iframe.setAttribute("id", "hidden_frame" + id);
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write("<body></body>");
+    iframe.contentWindow.close();
+    iframe.contentWindow.document.body = iframe.contentWindow.document.createElement("body");
+    //iframe.contentWindow.document.appendChild(body);
+    var a = iframe.contentDocument.createElement("a");
+    iframe.contentWindow.document.body.appendChild(a);
+    iframe.contentWindow.onload = function() {
+        console.log("aaaaaa");
+        //_("hidden_frame" + id).outerHTML = "";
+    }
+    a.href = url;
+    a.click();
+    //iframe.contentWindow.document.close();
+}
+
 function check() {
     var folder_name = _("folder_name").value;
     var not_allowed = ["&", "/", "%", "~", "..", "="];
@@ -68,11 +95,18 @@ function uploadFile() {
     });
 }
 
+function cancel_zip(id) {
+    _("hidden_frame" + id).remove();
+}
+
 async function zipCheck(id) {
     var filename_td = _("row" + id).firstChild.nextSibling;
     console.log(filename_td.title);
     var button = filename_td.firstChild.nextSibling; // !!! this will change if structure of table changes !!!
-    button.remove(); // disable button
+    var cancel_button = button.cloneNode(true);
+    cancel_button.firstChild.setAttribute("src", "/images/cancel.png"); //TODO: change image from node to attribute
+    cancel_button.setAttribute("onclick", "cancel_zip(" + id + ")");
+    filename_td.replaceChild(cancel_button, button); // disable button
     var td = document.createElement('td');
     var canvas = document.createElement('canvas');
     canvas.className = "inline_canvas";
@@ -83,7 +117,6 @@ async function zipCheck(id) {
         linewidth = 4;
     canvas.width = canvas.height = size;
     var folder_name = filename_td.firstChild.title; // this as well
-    console.log(window.location.pathname + folder_name + "~/check");
     var nr_fails = 0;
     var drawCircle = function(percentage) {
         ctx.clearRect(0, 0, size, size);
@@ -124,11 +157,21 @@ async function zipCheck(id) {
             break;
         await sleep(200);
     }
-    percentage = 1;
-    requestAnimationFrame(drawCircle);
-    await sleep(200);
+    if (_("hidden_frame" + id) != null) {
+        percentage = 1;
+        requestAnimationFrame(drawCircle);
+        await sleep(200);
+    }
     _("row" + id).removeChild(td);
-    filename_td.appendChild(button); // add button back
+    filename_td.replaceChild(button, cancel_button); // add button back
+    // wait a bit for the download to start before removing frame
+    _("hidden_frame" + id).remove();
+}
+
+
+async function download_check_zip(id) {
+    downloadZip(id).then();
+    zipCheck(id);
 }
 
 window.onload = function() {
@@ -182,4 +225,17 @@ window.onload = function() {
         }
     };
     drawDoubleCircle('#efefef', options.lineWidth, 100, options.percent, 0);
+}
+
+// abort so it dose not look stuck
+window.onunload = () => {
+    writableStream.abort()
+        // also possible to call abort on the writer you got from `getWriter()`
+    writer.abort()
+}
+
+window.onbeforeunload = evt => {
+    if (!done) {
+        evt.returnValue = `Are you sure you want to leave?`;
+    }
 }

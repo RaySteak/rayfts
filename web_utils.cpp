@@ -165,8 +165,11 @@ string web_utils::generate_folder_html(string path, const unsigned int max_name_
             size = "-";
             folder += add_table_image("folder.png");
             folder += tdbeg + filename + "/\" " + title + short_filename +
-                      "</a><a href=\"" + filename + "/~archive\" onclick=\"zipCheck('" + to_string(i) + "')\">" + add_image("download.png") +
-                      tdend;
+                      "</a><button onclick=\"download_check_zip(" + to_string(i) + ")\"/ type=\"button\">" + add_image("download.png") +
+                      +"</td>";
+            // folder += tdbeg + filename + "/\" " + title + short_filename +
+            //           "</a><a href=\"" + filename + "/~archive\" onclick=\"zipCheck('" + to_string(i) + "')\">" + add_image("download.png") +
+            //           tdend;
         }
         folder += "<td>" + size + "</td>";
         folder += "<td><input type=\"checkbox\" name=\"" + filename + "\"></td> ";
