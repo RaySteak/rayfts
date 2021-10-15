@@ -7,8 +7,9 @@ if (perfEntries[0].type === "back_forward") {
 }
 
 async function downloadZip(id) {
-    //TODO: cleanup this function, take out the useless trial stuff
-    //_("hidden_frame" + id).remove(); / / remove any frame created by previous calls
+    try {
+        _("hidden_frame" + id).remove(); //remove any frame created by previous calls
+    } catch (error) {}
     var filename_td = _("row" + id).firstChild.nextSibling;
     var folder_name = filename_td.firstChild.title;
     folder_name += "/~archive";
@@ -17,20 +18,9 @@ async function downloadZip(id) {
     document.body.appendChild(iframe);
     iframe.setAttribute("style", "position: absolute;width:0;height:0;border:0;");
     iframe.setAttribute("id", "hidden_frame" + id);
-    iframe.contentWindow.document.open();
-    iframe.contentWindow.document.write("<body></body>");
-    iframe.contentWindow.close();
-    iframe.contentWindow.document.body = iframe.contentWindow.document.createElement("body");
-    //iframe.contentWindow.document.appendChild(body);
     var a = iframe.contentDocument.createElement("a");
-    iframe.contentWindow.document.body.appendChild(a);
-    iframe.contentWindow.onload = function() {
-        console.log("aaaaaa");
-        //_("hidden_frame" + id).outerHTML = "";
-    }
     a.href = url;
     a.click();
-    //iframe.contentWindow.document.close();
 }
 
 function check() {
