@@ -67,3 +67,7 @@ button:hover {
 a {
     text-decoration: none;
 }
+
+table {
+    margin: auto;
+}
