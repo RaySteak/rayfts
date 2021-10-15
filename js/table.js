@@ -94,7 +94,7 @@ async function zipCheck(id) {
     console.log(filename_td.title);
     var button = filename_td.firstChild.nextSibling; // !!! this will change if structure of table changes !!!
     var cancel_button = button.cloneNode(true);
-    cancel_button.firstChild.setAttribute("src", "/images/cancel.png"); //TODO: change image from node to attribute
+    cancel_button.setAttribute("style", "background-image: url('/images/cancel.png')"); //TODO: change image from node to attribute
     cancel_button.setAttribute("onclick", "cancel_zip(" + id + ")");
     filename_td.replaceChild(cancel_button, button); // disable button
     var td = document.createElement('td');

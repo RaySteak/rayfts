@@ -16,6 +16,10 @@ namespace web_utils
     {
         return "<td>" + add_image(image) + "</td>";
     }
+    inline std::string image_attribute(std::string image)
+    {
+        return "style=\"background-image: url('/images/" + image + "')\"";
+    }
     std::string parse_webstring(std::string name, bool replace_plus);
     HTTPresponse::MIME guess_mime_type(std::string filepath);
     void ping(int sockfd, struct in_addr ip_addr, int count);
