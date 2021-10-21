@@ -24,13 +24,12 @@ void wake_on_lan::init()
         magic += mac;
 }
 
-wake_on_lan::wake_on_lan(std::string address, std::string device_name, std::string ip, std::string type, uint16_t port)
+wake_on_lan::wake_on_lan(std::string address, std::string device_name, std::string ip, std::string type)
 {
     this->device_name = device_name;
     this->mac_readable = address;
     this->ip = ip;
     this->type = type;
-    this->port = port;
     init();
 }
 
@@ -65,13 +64,7 @@ std::vector<wake_on_lan> wake_on_lan::parse_list(const char *filename)
         char *ip = strtok(NULL, " \t");          // for checking if computer is awake
         char *device_name = strtok(NULL, " \t"); // also the username for ssh-ing into machine
         char *type = strtok(NULL, " \t");
-        uint16_t port = 0;
-        if (!strcmp(type, "arduino"))
-        {
-            char *port_str = strtok(NULL, " \t");
-            port = atoi(port_str);
-        }
-        list.push_back({mac, device_name, ip, type, port});
+        list.push_back({mac, device_name, ip, type});
     }
     return list;
 }
@@ -94,9 +87,4 @@ std::string wake_on_lan::get_ip()
 std::string wake_on_lan::get_type()
 {
     return type;
-}
-
-uint16_t wake_on_lan::get_port()
-{
-    return port;
 }

@@ -10,11 +10,10 @@ namespace wol
     {
     private:
         std::string mac, magic, device_name, mac_readable, ip, type;
-        uint16_t port;
         void init();
 
     public:
-        wake_on_lan(std::string address, std::string device_name = "", std::string ip = "", std::string type = "", uint16_t port = 0);
+        wake_on_lan(std::string address, std::string device_name = "", std::string ip = "", std::string type = "");
         bool awaken();
         static std::vector<wake_on_lan> parse_list(const char *filename);
         std::string &get_device_name();
