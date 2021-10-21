@@ -21,7 +21,46 @@ function add_device(device_name, mac, type) {
     types[count] = type;
 }
 
-function awaken(id) {
+var update_on_states = async function() {
+    $.ajax({
+        xhr: function() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState == 2) {
+                    xhr.responseType = "text";
+                }
+            };
+            return xhr;
+        },
+        url: window.location.pathname + "/~up",
+        type: "GET",
+        processData: false,
+        success: function(data) {
+            for (var i = 0; i < data.length; i++) {
+                var id = i + 1;
+                on_state_id = "on_state" + id;
+                _(on_state_id).disabled = false;
+                if (data[i] == "1" && !_(on_state_id).checked) {
+                    _(on_state_id).click();
+                    var new_off = fall_asleep_button.cloneNode(true);
+                    new_off.id = "fall_asleep" + id;
+                    new_off.setAttribute("onClick", "javascript: fall_asleep(" + id + ")");
+                    _("awaken" + id).replaceWith(new_off);
+                }
+                if (data[i] == "0" && _(on_state_id).checked) {
+                    _(on_state_id).click();
+                    var new_on = awaken_button.cloneNode(true);
+                    new_on.id = "awaken" + id;
+                    new_on.setAttribute("onClick", "javascript: awaken(" + id + ")");
+                    _("fall_asleep" + id).replaceWith(new_on);
+                }
+                _(on_state_id).disabled = true;
+            }
+        }
+    });
+}
+
+async function awaken(id) {
     $.ajax({
         xhr: function() {
             var xhr = new XMLHttpRequest();
@@ -40,6 +79,8 @@ function awaken(id) {
             //
         }
     });
+    await sleep(50);
+    update_on_states();
 }
 
 function get_name_from_device(device_name) {
@@ -54,7 +95,7 @@ function get_ip_from_device(device_name) {
     return second[0];
 }
 
-function fall_asleep(id) {
+async function fall_asleep(id) {
     $.ajax({
         xhr: function() {
             var xhr = new XMLHttpRequest();
@@ -73,48 +114,15 @@ function fall_asleep(id) {
             //
         }
     });
+    await sleep(50);
+    update_on_states();
 }
 
-var update_on_states = async function() {
+var continually_update_on_states = async function() {
     while (true) {
-        $.ajax({
-            xhr: function() {
-                var xhr = new XMLHttpRequest();
-                xhr.onreadystatechange = function() {
-                    if (xhr.readyState == 2) {
-                        xhr.responseType = "text";
-                    }
-                };
-                return xhr;
-            },
-            url: window.location.pathname + "/~up",
-            type: "GET",
-            processData: false,
-            success: function(data) {
-                for (var i = 0; i < data.length; i++) {
-                    var id = i + 1;
-                    on_state_id = "on_state" + id;
-                    _(on_state_id).disabled = false;
-                    if (data[i] == "1" && !_(on_state_id).checked) {
-                        _(on_state_id).click();
-                        var new_off = fall_asleep_button.cloneNode(true);
-                        new_off.id = "fall_asleep" + id;
-                        new_off.setAttribute("onClick", "javascript: fall_asleep(" + id + ")");
-                        _("awaken" + id).replaceWith(new_off);
-                    }
-                    if (data[i] == "0" && _(on_state_id).checked) {
-                        _(on_state_id).click();
-                        var new_on = awaken_button.cloneNode(true);
-                        new_on.id = "awaken" + id;
-                        new_on.setAttribute("onClick", "javascript: awaken(" + id + ")");
-                        _("fall_asleep" + id).replaceWith(new_on);
-                    }
-                    _(on_state_id).disabled = true;
-                }
-            }
-        });
+        update_on_states();
         await sleep(1000);
     }
 }
 
-update_on_states().then();
+continually_update_on_states();
