@@ -7,7 +7,9 @@ var tbody = _("tbody");
 var count = 0;
 _("ref_tr").remove();
 
-function add_device(device_name, mac) {
+var types = [];
+
+function add_device(device_name, mac, type) {
     tbody.appendChild(clone_tr.cloneNode(true));
     _("device_name").innerHTML = device_name;
     _("mac").innerHTML = mac;
@@ -16,6 +18,7 @@ function add_device(device_name, mac) {
     _("on_state").id = "on_state" + count;
     _("awaken").setAttribute("onClick", "javascript: awaken(" + count + ")");
     _("awaken").id = "awaken" + count;
+    types[count] = type;
 }
 
 function awaken(id) {
@@ -31,7 +34,7 @@ function awaken(id) {
         },
         url: window.location.pathname + "/~awaken",
         type: "PATCH",
-        data: "turn_on=" + _("mac" + id).innerHTML,
+        data: "turn_on=" + _("mac" + id).innerHTML + "&ip=" + get_ip_from_device(_("device_name" + id).innerHTML) + "&type=" + types[id],
         processData: false,
         success: function(data) {
             //
@@ -64,7 +67,7 @@ function fall_asleep(id) {
         },
         url: window.location.pathname + "/~sleep",
         type: "PATCH",
-        data: "ip=" + get_ip_from_device(_("device_name" + id).innerHTML),
+        data: "ip=" + get_ip_from_device(_("device_name" + id).innerHTML) + "&type=" + types[id],
         processData: false,
         success: function(data) {
             //

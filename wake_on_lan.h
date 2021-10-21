@@ -9,17 +9,18 @@ namespace wol
     class wake_on_lan
     {
     private:
-        std::string mac, magic, device_name, mac_readable, ip;
+        std::string mac, magic, device_name, mac_readable, ip, type;
+        uint16_t port;
         void init();
 
     public:
-        wake_on_lan(std::string address); // given as XX:XX:...
-        wake_on_lan(std::string address, std::string device_name);
-        wake_on_lan(std::string address, std::string device_name, std::string ip);
+        wake_on_lan(std::string address, std::string device_name = "", std::string ip = "", std::string type = "", uint16_t port = 0);
         bool awaken();
         static std::vector<wake_on_lan> parse_list(const char *filename);
         std::string &get_device_name();
         std::string get_mac_readable();
         std::string get_ip();
+        std::string get_type();
+        uint16_t get_port();
     };
 };

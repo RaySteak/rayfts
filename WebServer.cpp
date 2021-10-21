@@ -2,6 +2,7 @@
 #include "web_utils.h"
 #include "wake_on_lan.h"
 #include "remote_shutdown/remote_shutdown.h"
+#include "arduino/arduino_constants.h"
 #include <algorithm>
 #include <set>
 #include <spawn.h>
@@ -12,6 +13,7 @@
 #define IF_IS
 
 using namespace web_utils;
+using namespace arduino_constants;
 using std::async;
 using std::make_pair;
 using std::make_tuple;
@@ -69,6 +71,15 @@ void WebServer::init_server_params(int port, const char *user, const char *pass)
 
     udpfd = socket(AF_INET, SOCK_DGRAM, 0);
     DIE(udpfd < 0, "socket");
+
+    auto wol_list = wol::wake_on_lan::parse_list("WolList.txt");
+    for (auto &w : wol_list)
+    {
+        if (w.get_type() == "arduino")
+        {
+            iots.insert(w.get_ip()); //TODO: change to set
+        }
+    }
 }
 
 WebServer::WebServer(int port, const char *user, const char *pass)
@@ -113,6 +124,27 @@ int WebServer::send_exactly(int fd, const char *buffer, size_t count)
         count -= n;
     }
     return nr;
+}
+
+int WebServer::send_udp(const char *buffer, size_t count, string address, uint16_t port)
+{
+    cli_addr.sin_family = AF_INET;
+    cli_addr.sin_port = htons(port);
+    inet_aton(address.c_str(), &cli_addr.sin_addr);
+    return sendto(udpfd, buffer, count, 0, (sockaddr *)&cli_addr, sizeof(cli_addr));
+}
+
+int WebServer::recv_udp(char *buffer, size_t max_count, string address, uint16_t port, unsigned int timeout_ms)
+{
+    timeval tv;
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+    ret = setsockopt(udpfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    DIE(ret < 0, "setsockopt");
+    cli_addr.sin_family = AF_INET;
+    cli_addr.sin_port = htons(port);
+    inet_aton(address.c_str(), &cli_addr.sin_addr);
+    return recvfrom(udpfd, buffer, max_count, 0, (sockaddr *)&cli_addr, &socklen);
 }
 
 int WebServer::recv_exactly(int fd, char *buffer, size_t count, timeval t) //TODO: implement timeval
@@ -482,7 +514,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     string response = std::string((std::istreambuf_iterator<char>(control)), std::istreambuf_iterator<char>());
                     response += "<script>";
                     for (auto &w : wol_list)
-                        response += "add_device(\"" + w.get_device_name() + " (" + w.get_ip() + ")\",\"" + w.get_mac_readable() + "\");";
+                        response += "add_device(\"" + w.get_device_name() + " (" + w.get_ip() + ")\",\"" + w.get_mac_readable() + "\",\"" + w.get_type() + "\");";
                     response += "</script></body></html>";
                     return HTTPresponse(200).file_attachment(response, HTTPresponse::MIME::html);
                 }
@@ -493,8 +525,15 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     auto wol_list = wol::wake_on_lan::parse_list("WolList.txt");
                     for (auto &w : wol_list)
                     {
-                        // TODO: add a future style approach instead
                         const unsigned int wait_ms = 10;
+                        // TODO: run this in parallel with a timer
+                        if (w.get_type() == "arduino")
+                        {
+                            send_udp(GET_STATE, strlen(GET_STATE), w.get_ip(), PORT);
+                            n = recv_udp(buffer, BUFLEN, w.get_ip(), PORT, wait_ms);
+                            on_states += n > 0 ? (buffer[0] == '1' ? '1' : '0') : '0'; // might seem redundant but this way we return 0 for altered messages
+                            continue;
+                        }
                         pid_t pid;
                         char argv0[] = "/bin/fping", argv1[] = "-c1", argv2[15] = "-t", *argv3 = strdup(w.get_ip().c_str());
                         strcat(argv2, std::to_string(wait_ms).c_str());
@@ -653,19 +692,31 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             auto fields = get_content_fields(content, "=", "&");
             if (!strcmp(url, "/control/~awaken"))
             {
-                if (fields["turn_on"] == "")
+                if (fields["turn_on"] == "" || fields["type"] == "" || fields["ip"] == "")
                     return HTTPresponse(400).end_header();
-                wol::wake_on_lan(fields["turn_on"]).awaken();
+                if (fields["type"] == "arduino")
+                {
+                    if (iots.find(fields["ip"]) == iots.end())
+                        return not_found;
+                    n = send_udp(TURN_ON, strlen(TURN_ON), fields["ip"], PORT);
+                }
+                else
+                {
+                    wol::wake_on_lan(fields["turn_on"]).awaken();
+                }
                 return HTTPresponse(200).file_attachment(string("Awaken command sent"), HTTPresponse::MIME::text);
             }
             if (!strcmp(url, "/control/~sleep"))
             {
-                if (fields["ip"] == "")
+                if (fields["ip"] == "" || fields["type"] == "")
                     return HTTPresponse(400).end_header();
-                cli_addr.sin_family = AF_INET;
-                cli_addr.sin_port = htons(REMOTE_SHUTDOWN_PORT);
-                inet_aton(fields["ip"].c_str(), &cli_addr.sin_addr);
-                sendto(udpfd, REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD), 0, (sockaddr *)&cli_addr, sizeof(cli_addr));
+                if (fields["type"] == "arduino")
+                {
+                    if (iots.find(fields["ip"]) == iots.end())
+                        return not_found;
+                    n = send_udp(TURN_OFF, strlen(TURN_OFF), fields["ip"], PORT);
+                }
+                n = send_udp(REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD), fields["ip"], REMOTE_SHUTDOWN_PORT);
                 return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);
             }
             return not_found;
