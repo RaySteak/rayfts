@@ -76,8 +76,12 @@ void WebServer::init_server_params(int port, const char *user, const char *pass)
     for (auto &w : wol_list)
     {
         if (w.get_type() == "arduino")
+            ping_machine.add_device(ping_device::type::arduino, w.get_ip(), PORT);
+        else
+            ping_machine.add_device(ping_device::type::rawping, w.get_ip(), 0);
+        if (w.get_type() == "arduino")
         {
-            iots.insert(w.get_ip()); //TODO: change to set
+            iots.insert(w.get_ip());
         }
     }
 }
@@ -124,27 +128,6 @@ int WebServer::send_exactly(int fd, const char *buffer, size_t count)
         count -= n;
     }
     return nr;
-}
-
-int WebServer::send_udp(const char *buffer, size_t count, string address, uint16_t port)
-{
-    cli_addr.sin_family = AF_INET;
-    cli_addr.sin_port = htons(port);
-    inet_aton(address.c_str(), &cli_addr.sin_addr);
-    return sendto(udpfd, buffer, count, 0, (sockaddr *)&cli_addr, sizeof(cli_addr));
-}
-
-int WebServer::recv_udp(char *buffer, size_t max_count, string address, uint16_t port, unsigned int timeout_ms)
-{
-    timeval tv;
-    tv.tv_sec = timeout_ms / 1000;
-    tv.tv_usec = (timeout_ms % 1000) * 1000;
-    ret = setsockopt(udpfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-    DIE(ret < 0, "setsockopt");
-    cli_addr.sin_family = AF_INET;
-    cli_addr.sin_port = htons(port);
-    inet_aton(address.c_str(), &cli_addr.sin_addr);
-    return recvfrom(udpfd, buffer, max_count, 0, (sockaddr *)&cli_addr, &socklen);
 }
 
 int WebServer::recv_exactly(int fd, char *buffer, size_t count, timeval t) //TODO: implement timeval
@@ -457,6 +440,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     }
     else if (!startcmp(url, "/files/") || !strcmp(url, "/") || !startcmp(url, "/control")) // private stuff that requires passwords
     {
+        ping_machine.wind(10);
         HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
         string cookie = http_fields["Cookie"];
         char *cookie_copy = strdup(cookie.c_str());
@@ -521,35 +505,12 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 auto action = get_action_and_truncate(url_string, false);
                 if (action == "up")
                 {
-                    string on_states;
-                    auto wol_list = wol::wake_on_lan::parse_list("WolList.txt");
-                    for (auto &w : wol_list)
+                    string on_states = ping_machine.get_states();
+                    std::cout << on_states << '\n';
+                    if (on_states.find('X') != std::string::npos)
                     {
-                        const unsigned int wait_ms = 10;
-                        // TODO: run this in parallel with a timer
-                        if (w.get_type() == "arduino")
-                        {
-                            send_udp(GET_STATE, strlen(GET_STATE), w.get_ip(), PORT);
-                            n = recv_udp(buffer, BUFLEN, w.get_ip(), PORT, wait_ms);
-                            on_states += n > 0 ? (buffer[0] == '1' ? '1' : '0') : '0'; // might seem redundant but this way we return 0 for altered messages
-                            continue;
-                        }
-                        pid_t pid;
-                        char argv0[] = "/bin/fping", argv1[] = "-c1", argv2[15] = "-t", *argv3 = strdup(w.get_ip().c_str());
-                        strcat(argv2, std::to_string(wait_ms).c_str());
-                        char *const argv[] = {argv0, argv1, argv2, argv3, NULL};
-                        int status = posix_spawn(&pid, argv0, NULL, NULL, argv, NULL);
-                        free(argv3);
-                        if (status)
-                        {
-                            std::cerr << "/bin/fping not found, please install it\n";
-                            return HTTPresponse(404).file_attachment(string("Please install fping on the server\n"), HTTPresponse::MIME::text);
-                        }
-                        waitpid(pid, &status, 0);
-                        if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
-                            on_states += '1';
-                        else
-                            on_states += '0';
+                        std::cerr << "/bin/fping not found, please install it\n";
+                        return HTTPresponse(404).file_attachment(string("Please install fping on the server\n"), HTTPresponse::MIME::text);
                     }
                     return HTTPresponse(200).file_attachment(on_states, HTTPresponse::MIME::text);
                 }
@@ -698,7 +659,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 {
                     if (iots.find(fields["ip"]) == iots.end())
                         return not_found;
-                    n = send_udp(TURN_ON, strlen(TURN_ON), fields["ip"], PORT);
+                    n = send_udp(udpfd, TURN_ON, strlen(TURN_ON), fields["ip"].c_str(), PORT);
                 }
                 else
                 {
@@ -714,11 +675,11 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 {
                     if (iots.find(fields["ip"]) == iots.end())
                         return not_found;
-                    n = send_udp(TURN_OFF, strlen(TURN_OFF), fields["ip"], PORT);
+                    n = send_udp(udpfd, TURN_OFF, strlen(TURN_OFF), fields["ip"].c_str(), PORT);
                 }
                 else
                 {
-                    n = send_udp(REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD), fields["ip"], REMOTE_SHUTDOWN_PORT);
+                    n = send_udp(udpfd, REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD), fields["ip"].c_str(), REMOTE_SHUTDOWN_PORT);
                 }
                 return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);
             }

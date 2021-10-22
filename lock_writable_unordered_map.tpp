@@ -21,6 +21,13 @@ void lock_writable_unordered_map<K, T>::erase(K key)
 }
 
 template <typename K, typename T>
+void lock_writable_unordered_map<K, T>::clear()
+{
+    std::lock_guard<std::mutex> lk_grd(map_mutex);
+    m.clear();
+}
+
+template <typename K, typename T>
 typename std::unordered_map<K, T>::iterator lock_writable_unordered_map<K, T>::begin()
 {
     std::lock_guard<std::mutex> lk_grd(map_mutex);

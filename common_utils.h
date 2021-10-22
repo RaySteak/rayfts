@@ -34,3 +34,6 @@
 #define BUFLEN 8192
 #define MAX_CLIENTS 5
 #define MAX_PORT 65535
+
+int send_udp(int fd, const char *buffer, size_t count, const char *address, uint16_t port);
+int recv_udp(int fd, char *buffer, size_t max_count, const char *address, uint16_t port, unsigned int timeout_ms);

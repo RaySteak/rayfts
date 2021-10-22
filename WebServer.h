@@ -3,6 +3,7 @@
 #include "HTTPresponse.h"
 #include "SessionCookie.h"
 #include "lock_writable_unordered_map.h"
+#include "ping_device.h"
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -90,12 +91,11 @@ private:
     unordered_map<int, file_receive_data> unreceived_files;
 
     unordered_set<string> iots;
+    ping_device ping_machine{};
 
     inline void init_server_params(int port, const char *user, const char *path);
     int send_exactly(int fd, const char *buffer, size_t count);
     int recv_exactly(int fd, char *buffer, size_t count, timeval t);
-    int send_udp(const char *buffer, size_t count, string address, uint16_t port);
-    int recv_udp(char *buffer, size_t max_count, string address, uint16_t port, unsigned int timeout_ms);
     int recv_http_header(int fd, char *buffer, int max, int &header_size);
     void close_connection(int fd, bool erase_from_sets);
     int process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, uint64_t &total);

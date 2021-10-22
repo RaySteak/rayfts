@@ -21,6 +21,26 @@ function add_device(device_name, mac, type) {
     types[count] = type;
 }
 
+async function swap_state(id) {
+    on_state_id = "on_state" + id;
+    _(on_state_id).disabled = false;
+    if (!_(on_state_id).checked) {
+        var new_off = fall_asleep_button.cloneNode(true);
+        new_off.id = "fall_asleep" + id;
+        new_off.setAttribute("onClick", "javascript: fall_asleep(" + id + ")");
+        _("awaken" + id).replaceWith(new_off);
+        _(on_state_id).checked = true;
+    } else {
+        var new_on = awaken_button.cloneNode(true);
+        new_on.id = "awaken" + id;
+        new_on.setAttribute("onClick", "javascript: awaken(" + id + ")");
+        _("fall_asleep" + id).replaceWith(new_on);
+        _(on_state_id).checked = false;
+    }
+    //_(on_state_id).click();
+    _(on_state_id).disabled = true;
+}
+
 var update_on_states = async function() {
     $.ajax({
         xhr: function() {
@@ -39,22 +59,10 @@ var update_on_states = async function() {
             for (var i = 0; i < data.length; i++) {
                 var id = i + 1;
                 on_state_id = "on_state" + id;
-                _(on_state_id).disabled = false;
-                if (data[i] == "1" && !_(on_state_id).checked) {
-                    _(on_state_id).click();
-                    var new_off = fall_asleep_button.cloneNode(true);
-                    new_off.id = "fall_asleep" + id;
-                    new_off.setAttribute("onClick", "javascript: fall_asleep(" + id + ")");
-                    _("awaken" + id).replaceWith(new_off);
-                }
-                if (data[i] == "0" && _(on_state_id).checked) {
-                    _(on_state_id).click();
-                    var new_on = awaken_button.cloneNode(true);
-                    new_on.id = "awaken" + id;
-                    new_on.setAttribute("onClick", "javascript: awaken(" + id + ")");
-                    _("fall_asleep" + id).replaceWith(new_on);
-                }
-                _(on_state_id).disabled = true;
+                if (data[i] == "1" && !_(on_state_id).checked)
+                    swap_state(id);
+                else if (data[i] == "0" && _(on_state_id).checked)
+                    swap_state(id);
             }
         }
     });
@@ -79,7 +87,7 @@ async function awaken(id) {
             //
         }
     });
-    await sleep(50);
+    await sleep(100);
     update_on_states();
 }
 
@@ -89,7 +97,6 @@ function get_name_from_device(device_name) {
 }
 
 function get_ip_from_device(device_name) {
-    console.log(device_name);
     var first = device_name.split('(');
     var second = first[1].split(')');
     return second[0];
@@ -114,7 +121,7 @@ async function fall_asleep(id) {
             //
         }
     });
-    await sleep(50);
+    await sleep(100);
     update_on_states();
 }
 

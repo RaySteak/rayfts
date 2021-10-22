@@ -1,9 +1,10 @@
+#pragma once
 #include <stdint.h>
 
 namespace arduino_constants
 {
-    const uint16_t PORT = 80;
-    const char *TURN_OFF = "LED_OFF\r\n";
-    const char *TURN_ON = "LED_ON\r\n";
-    const char *GET_STATE = "LED_STATE\r\n";
+    extern const uint16_t PORT;
+    extern const char *TURN_OFF;
+    extern const char *TURN_ON;
+    extern const char *GET_STATE;
 }
