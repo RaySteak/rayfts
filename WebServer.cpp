@@ -716,7 +716,10 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                         return not_found;
                     n = send_udp(TURN_OFF, strlen(TURN_OFF), fields["ip"], PORT);
                 }
-                n = send_udp(REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD), fields["ip"], REMOTE_SHUTDOWN_PORT);
+                else
+                {
+                    n = send_udp(REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD), fields["ip"], REMOTE_SHUTDOWN_PORT);
+                }
                 return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);
             }
             return not_found;
