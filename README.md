@@ -19,4 +19,4 @@ sudo apt install libboost-filesystem-dev -y
 ## Using the command:
 The server has 3 parameters: port, username and password, in this order.
 
-An example is listed in the Makefile, which you can try with `make run_server`, which runs the server on port 42069, with credentials "a" and "a".
+An example is listed in the Makefile, which you can try with `make run_server`, which runs the server on port 42069, with credentials "a" and "a". You can also use `make run_server_debug` which runs the server in debug mode which doesn't require a password. Just make sure to `make clean` if you want to use `make run_server` after running `make run_server_debug` or vice versa.
