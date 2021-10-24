@@ -57,6 +57,8 @@ var update_on_states = async function() {
         processData: false,
         success: function(data) {
             for (var i = 0; i < data.length; i++) {
+                if (data[0] != "0" && data[0] != "1")
+                    location.reload();
                 var id = i + 1;
                 on_state_id = "on_state" + id;
                 if (data[i] == "1" && !_(on_state_id).checked)
@@ -75,6 +77,10 @@ async function awaken(id) {
             xhr.onreadystatechange = function() {
                 if (xhr.readyState == 2) {
                     xhr.responseType = "text";
+                    if (xhr.status == "501") // if not implemented, it means our session expired and we got redirected to login
+                    {
+                        location.reload();
+                    }
                 }
             };
             return xhr;
@@ -109,6 +115,10 @@ async function fall_asleep(id) {
             xhr.onreadystatechange = function() {
                 if (xhr.readyState == 2) {
                     xhr.responseType = "text";
+                    if (xhr.status == "501") // if not implemented, it means our session expired and we got redirected to login
+                    {
+                        location.reload();
+                    }
                 }
             };
             return xhr;

@@ -26,6 +26,7 @@ public:
     void ping_devices();
     void wind(time_t secs);
     std::string get_states();
+    bool is_running();
 
 private:
     char buffer[BUFLEN];

@@ -909,5 +909,8 @@ WebServer::~WebServer()
         delete c;
     for (auto &[path, pid] : path_to_pid)
         kill(pid, SIGKILL);
+    ping_machine.wind(0);
+    while (ping_machine.is_running())
+        ;
     close(udpfd);
 }

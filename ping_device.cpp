@@ -119,3 +119,18 @@ std::string ping_device::get_states()
     std::lock_guard<std::mutex> lck_grd(states_mutex);
     return states;
 }
+
+bool ping_device::is_running()
+{
+    bool ret = true;
+    try
+    {
+        if (ping.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+            ret = false;
+    }
+    catch (const std::exception &e)
+    {
+        ret = false;
+    }
+    return ret;
+}
