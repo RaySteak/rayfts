@@ -1,8 +1,8 @@
 # rayfts
-HTTP file transfer server for linux, with large file support for 32-bit systems. Created for personal use, designed to run on low-end hardware like the Raspberry Pi and handle parallel downloading/uploading on a single process and a single thread, and parallel directory zipping by running the default zip function on seperate threads (if the default zipping function is used, these threads will also each spawn a child process that runs **7zip**).
+HTTP file transfer server for linux, with large file support for 32-bit systems. Created for personal use, designed to run on low-end hardware like the Raspberry Pi and handle parallel downloading/uploading on a single process and a single thread, and parallel directory zipping by running the zip function on seperate threads (if the default zipping function is used, these threads will also each spawn a child process that runs **7zip**).
 
 ## Requirements:
-The server should compile on any linux system running a **gcc** version that supports the **C++17** standard. So far, compiling and running has been tested on Ubuntu and Raspberry OS 32-bit.
+The server should compile on any linux system running a **gcc** version that supports the **C++17** standard and has the boost filesystem library installed. So far, compiling and running has been tested on Ubuntu and Raspberry OS 32-bit. Some functionalities, like directory zipping and the control page require additional programs (see the "Installation guide" section).
 ## Installation guide:
 - First, clone the repository in any empty directory of your choice (**note**: this is where files will be stored as well, so make sure it's on the storage drive you want):
 ```
@@ -13,6 +13,7 @@ git clone https://github.com/RaySteak/rayfts .
 sudo apt install libboost-filesystem-dev -y
 ```
 - If you want to use the default zip function, you must also have **7zip** installed and located in `/bin/7z`. The code in *server.cpp* can also be changed to use any zip function, by using the secondary constructor of WebServer. If neither of those options appeal to you, the server will still run but will crash when you use the zip feature.
+- Additionaly, the control page requires that **fping** is installed under `/bin/fping`.
 - Finally, compile the executable for the server using `make server` or simply `make`.
 
 ## Using the command:
