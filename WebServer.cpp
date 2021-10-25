@@ -842,6 +842,11 @@ void WebServer::run()
                             break;
                         if (!startcmp(buffer, "exit"))
                             break;
+                        if (!startcmp(buffer, "debug"))
+                        {
+                            debug_mode = !debug_mode;
+                            continue;
+                        }
                         fprintf(stderr, "Command not recognized!\n");
                     }
                     else if (i == listenfd)

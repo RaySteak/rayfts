@@ -116,9 +116,9 @@ private:
     static const size_t max_alloc = 16 * (1 << 10); // used for receive size
 
 #ifdef SERVER_DEBUG
-    const bool debug_mode = 1;
+    bool debug_mode = 1;
 #else
-    const bool debug_mode = 0;
+    bool debug_mode = 0;
 #endif
 
 public:
