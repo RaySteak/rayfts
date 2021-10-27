@@ -2,6 +2,8 @@ document.title = window.location.host + window.location.pathname;
 
 var perfEntries = performance.getEntriesByType("navigation");
 
+var was_canceled = [];
+
 if (perfEntries[0].type === "back_forward") {
     location.reload(true);
 }
@@ -87,6 +89,7 @@ function uploadFile() {
 
 function cancel_zip(id) {
     _("hidden_frame" + id).remove();
+    was_canceled[id] = true;
 }
 
 async function zipCheck(id) {
@@ -120,6 +123,10 @@ async function zipCheck(id) {
         ctx.stroke();
     }
     while (true) {
+        if (was_canceled[id]) {
+            was_canceled[id] = false;
+            break;
+        }
         $.ajax({
             xhr: function() {
                 var xhr = new XMLHttpRequest();

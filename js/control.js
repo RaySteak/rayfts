@@ -95,6 +95,8 @@ async function awaken(id) {
             //
         }
     });
+    //if (types[id] == "arduino")
+    //    swap_state(id);
     await sleep(100);
     update_on_states();
 }
@@ -133,6 +135,8 @@ async function fall_asleep(id) {
             //
         }
     });
+    //if (types[id] == "arduino")
+    //    swap_state(id);
     await sleep(100);
     update_on_states();
 }

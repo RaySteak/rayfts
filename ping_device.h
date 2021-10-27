@@ -1,3 +1,5 @@
+// A device class that checks the state of multiple connected devices (not a class that pings a device :) )
+
 #pragma once
 #include <future>
 #include <tuple>
