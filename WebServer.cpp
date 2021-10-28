@@ -10,8 +10,6 @@
 #include <boost/filesystem.hpp>
 #include <sstream>
 
-#define IF_IS
-
 using namespace web_utils;
 using namespace arduino_constants;
 using std::async;
@@ -506,7 +504,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 if (action == "up")
                 {
                     string on_states = ping_machine.get_states();
-                    std::cout << on_states << '\n';
                     if (on_states.find('X') != std::string::npos)
                     {
                         std::cerr << "/bin/fping not found, please install it\n";
@@ -582,6 +579,15 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     for (auto &field : fields)
                         fs::remove_all(url_string + parse_webstring(field.first, true));
                     return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
+                }
+                if (action == "rename")
+                {
+                    auto fields = get_content_fields(content, "=", "&");
+                    if (fields["new_name"] == "" || !check_name(fields["new_name"]))
+                        return HTTPresponse(400).end_header();
+                    string parent_url = url_string.substr(0, url_string.find_last_of('/', url_string.length() - 2) + 1);
+                    fs::rename(url_string.substr(0, url_string.length() - 1), parent_url + fields["new_name"]);
+                    return HTTPresponse(303).location("/" + parent_url).file_attachment(redirect, HTTPresponse::MIME::text);
                 }
                 return not_found;
             }
@@ -697,7 +703,7 @@ void WebServer::run()
 {
     while (1)
     {
-        std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
+        //std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
         tmp_fds = read_fds;
         int available_requests;
         if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)

@@ -72,3 +72,55 @@ a {
 table {
     margin: auto;
 }
+
+#ctxMenu {
+    display: none;
+    z-index: 100;
+}
+
+#ctxRenameForm {
+    position: absolute;
+    display: none;
+    z-index: 100;
+}
+
+menu {
+    position: absolute;
+    display: block;
+    left: 0px;
+    top: 0px;
+    height: 20px;
+    width: 20px;
+    padding: 0;
+    margin: 0;
+    border: 1px solid;
+    border-radius: 5px;
+    background-color: white;
+    font-weight: normal;
+    white-space: nowrap;
+}
+
+menu:hover {
+    background-color: #eef;
+}
+
+menu:hover>menu {
+    display: block;
+}
+
+menu>menu {
+    display: none;
+    position: relative;
+    top: -20px;
+    left: 100%;
+    width: 60px;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+}
+
+menu[title]:before {
+    content: attr(title);
+}
+
+menu:not([title]):before {
+    content: "\2630";
+}
