@@ -583,10 +583,13 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 if (action == "rename")
                 {
                     auto fields = get_content_fields(content, "=", "&");
-                    if (fields["new_name"] == "" || !check_name(fields["new_name"]))
+                    string adjusted_name = parse_webstring(fields["new_name"], true);
+                    if (fields["new_name"] == "" || !check_name(adjusted_name))
                         return HTTPresponse(400).end_header();
                     string parent_url = url_string.substr(0, url_string.find_last_of('/', url_string.length() - 2) + 1);
-                    fs::rename(url_string.substr(0, url_string.length() - 1), parent_url + fields["new_name"]);
+                    if (fs::exists(parent_url + adjusted_name))
+                        return HTTPresponse(303).location("/" + parent_url).file_attachment(redirect, HTTPresponse::MIME::text);
+                    fs::rename(url_string.substr(0, url_string.length() - 1), parent_url + adjusted_name);
                     return HTTPresponse(303).location("/" + parent_url).file_attachment(redirect, HTTPresponse::MIME::text);
                 }
                 return not_found;
