@@ -36,7 +36,8 @@ public:
         icon,
         zip,
         mp4,
-        mkv
+        mkv,
+        pdf
     };
 
     enum class DISP

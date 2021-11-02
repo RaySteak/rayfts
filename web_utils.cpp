@@ -90,6 +90,8 @@ HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
         return HTTPresponse::MIME::mp4;
     if (extension == "mkv")
         return HTTPresponse::MIME::mkv;
+    if (extension == "pdf")
+        return HTTPresponse::MIME::pdf;
     // can't guess type, just return byte stream
     return HTTPresponse::MIME::octet_stream;
 }

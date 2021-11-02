@@ -97,6 +97,9 @@ HTTPresponse &HTTPresponse::content_type(MIME type)
     case MIME::mkv:
         response += "video/x-matroska";
         break;
+    case MIME::pdf:
+        response += "application/pdf";
+        break;
     default:
         break;
     }
