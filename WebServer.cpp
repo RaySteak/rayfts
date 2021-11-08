@@ -649,12 +649,10 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             auto fields = get_content_fields(content, "=", "&");
             //TODO: also check here (both existence of folder_name and also succesful directory creation)
             string folder_name = parse_webstring(fields["folder_name"], true);
-            // This check is redundant if user operates from browser, because it is also performed
-            // in the javascript of the site but requests might not come from browsers
             if (!check_name(folder_name))
                 return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
             fs::create_directory(path + folder_name);
-            //responsd with redirect (Post/Redirect/Get pattern) to avoid form resubmission
+            //respond with redirect (Post/Redirect/Get pattern) to avoid form resubmission
             return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
         }
         case Method::PATCH:
