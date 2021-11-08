@@ -351,7 +351,7 @@ HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folde
     }
     auto future_it = file_futures.find(folder_path);
     auto downloading_it = downloading_futures.find(folder_path);
-    if (future_it == file_futures.end() && downloading_it == downloading_futures.end()) // nobody neither waiting for creation nor for receiving
+    if (future_it == file_futures.end() && downloading_it == downloading_futures.end()) // nobody waiting for creation nor for receiving
     {
         fd_to_file_futures.insert({fd, temp_path});
         temp_to_path.insert({temp_path, folder_path});
@@ -469,7 +469,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         {
             return HTTPresponse(422).file_attachment(string("422 Unprocessable entity"), HTTPresponse::MIME::text);
         }
-        //std::ifstream file(path, std::ios::binary);
+
         bool doesnt_exist = !fs::exists(dir);
         if (!doesnt_exist)
         {
