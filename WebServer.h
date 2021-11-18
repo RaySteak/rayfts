@@ -110,7 +110,7 @@ private:
     // this function uses /bin/7z by default for ease of implementation,
     // it can be replaced by any function by using the 4-parameter constructor
     // this function must free the memory of the two parameters
-    std::function<int(char *, char *, WebServer *)> zip_folder;
+    std::function<int(char *, char *, WebServer *)> zip_folder; //TODO: use lambda capture instead of passing the server
 
     const int timeout_milli = 100;
     static const size_t max_alloc = 16 * (1 << 10); // used for receive size
