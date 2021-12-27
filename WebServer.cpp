@@ -128,7 +128,7 @@ int WebServer::send_exactly(int fd, const char *buffer, size_t count)
     return nr;
 }
 
-int WebServer::recv_exactly(int fd, char *buffer, size_t count, timeval t) //TODO: implement timeval
+int WebServer::recv_exactly(int fd, char *buffer, size_t count, timeval t) // TODO: implement timeval
 {
     int nr = 0;
     while (count)
@@ -257,7 +257,7 @@ int WebServer::process_http_header(int fd, char *buffer, int read_size, int head
     if (content_length)
     {
         content_length += strlen("Content-Length: ");
-        //TODO: check big content lengths
+        // TODO: check big content lengths
         int digits = 0;
         while (content_length[digits] >= '0' && content_length[digits] <= '9')
             digits++;
@@ -401,7 +401,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         case Method::POST:
         {
             auto fields = get_content_fields(content, "=", "&");
-            //TODO: implement remember
+            // TODO: implement remember
             string username, password, remember;
             username = fields["user"];
             password = fields["psw"];
@@ -647,12 +647,12 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 }
             }
             auto fields = get_content_fields(content, "=", "&");
-            //TODO: also check here (both existence of folder_name and also succesful directory creation)
+            // TODO: also check here (both existence of folder_name and also succesful directory creation)
             string folder_name = parse_webstring(fields["folder_name"], true);
             if (!check_name(folder_name))
                 return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
             fs::create_directory(path + folder_name);
-            //respond with redirect (Post/Redirect/Get pattern) to avoid form resubmission
+            // respond with redirect (Post/Redirect/Get pattern) to avoid form resubmission
             return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
         }
         case Method::PATCH:
@@ -704,7 +704,7 @@ void WebServer::run()
 {
     while (1)
     {
-        //std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
+        // std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
         std::cout << "nr de fisiere netrimise " << unsent_files.size() << '\n';
         tmp_fds = read_fds;
         int available_requests;
@@ -743,8 +743,7 @@ void WebServer::run()
                         else
                         {
                             entry->second.first--;
-                        }
-                    },
+                        } },
                     this);
                 // send to everyone who was waiting for the file
                 for (auto &connection : fds)
@@ -794,7 +793,7 @@ void WebServer::run()
         for (auto map_iterator = unreceived_files.begin(); map_iterator != unreceived_files.end();)
         {
             auto &f = map_iterator->second;
-            //TODO: build mechanism to check cancel of receive and also timeout
+            // TODO: build mechanism to check cancel of receive and also timeout
             f.file->write(f.data[f.current_buffer], f.last_recv);
             if (!f.remaining)
             {
@@ -814,7 +813,7 @@ void WebServer::run()
                 else
                 {
                     fs::resize_file(f.filename, size - offset - strlen("--") - strlen(CRLF));
-                    //TODO: return upload time here maybe and process it in ajax
+                    // TODO: return upload time here maybe and process it in ajax
                     HTTPresponse confirmation = HTTPresponse(200).file_attachment(string("success"), HTTPresponse::MIME::text);
                     send_exactly(map_iterator->first, confirmation.to_c_str(), confirmation.size());
                 }
@@ -822,7 +821,7 @@ void WebServer::run()
                 continue;
             }
 
-            n = recv_exactly(map_iterator->first, f.get_next_buffer(), f.remaining > max_alloc ? max_alloc : f.remaining, {0, 0}); //TODO: also change timeval here
+            n = recv_exactly(map_iterator->first, f.get_next_buffer(), f.remaining > max_alloc ? max_alloc : f.remaining, {0, 0}); // TODO: also change timeval here
             if (n <= 0)
             {
                 close_connection(map_iterator->first, false);
@@ -888,7 +887,7 @@ void WebServer::run()
                         std::cout << "Pregatim raspunsul...\n";
                         HTTPresponse response = process_http_request(data, header_size, n, total, i);
                         std::cout << "Trimitem raspunsul\n";
-                        //std::cout << response;
+                        // std::cout << response;
                         if (response.is_phony())
                             continue;
                         if (!response.is_promise_transfer())

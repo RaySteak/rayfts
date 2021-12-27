@@ -123,7 +123,7 @@ uint64_t web_utils::get_folder_size(string folder_path)
 string web_utils::get_action_and_truncate(string &url, bool check_exists) // returns empty string on fail
 {
     size_t pos = url.find("~");
-    if (pos != std::string::npos) //check for delete
+    if (pos != std::string::npos) // check for delete
     {
         string action = url.substr(pos + 1);
         url = url.substr(0, pos);
@@ -136,7 +136,7 @@ string web_utils::get_action_and_truncate(string &url, bool check_exists) // ret
 
 string web_utils::generate_folder_html(string path, const unsigned int max_name_length)
 {
-    //TODO: resize PNGs used for this to smaller resolutions
+    // TODO: resize PNGs used for this to smaller resolutions
     auto cmp = [](fs::directory_entry a, fs::directory_entry b)
     { return a.path().filename().string() < b.path().filename().string(); };
     set<fs::directory_entry, decltype(cmp)> entries(cmp);
@@ -169,9 +169,6 @@ string web_utils::generate_folder_html(string path, const unsigned int max_name_
             folder += tdbeg + filename + "/\" " + title + short_filename +
                       "</a><button onclick=\"download_check_zip(" + to_string(i) + ")\"/ type=\"button\"" + image_attribute("download.png") +
                       +"></td>";
-            // folder += tdbeg + filename + "/\" " + title + short_filename +
-            //           "</a><a href=\"" + filename + "/~archive\" onclick=\"zipCheck('" + to_string(i) + "')\">" + add_image("download.png") +
-            //           tdend;
         }
         folder += "<td>" + size + "</td>";
         folder += "<td><input type=\"checkbox\" name=\"" + filename + "\"></td> ";
@@ -181,7 +178,7 @@ string web_utils::generate_folder_html(string path, const unsigned int max_name_
     std::ifstream footer("html/table_footer.html", std::ios::binary);
     folder += std::string((std::istreambuf_iterator<char>(footer)), std::istreambuf_iterator<char>());
     auto stat = fs::space("files/");
-    folder += "<p hidden id=free_space>" + to_string(stat.free) + "</p><p hidden id=used_space>" + to_string(stat.capacity - stat.free) + "</p>";
+    folder += "<p hidden id=free_space>" + to_string(stat.capacity) + "</p><p hidden id=used_space>" + to_string(stat.capacity - stat.free) + "</p>";
     folder += "</body></html>";
     return folder;
 }
