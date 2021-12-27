@@ -52,8 +52,8 @@ public:
     HTTPresponse &content_type(MIME type);
     HTTPresponse &content_disposition(DISP disposition, string filename = "");
     HTTPresponse &location(string url);
-    HTTPresponse &data(const char *filename);         //use with care, adds whole data from file on heap
-    HTTPresponse &file_promise(const char *filename); //only sets the filename string inside the class
+    HTTPresponse &data(const char *filename);         // use with care, adds whole data from file on heap
+    HTTPresponse &file_promise(const char *filename); // only sets the filename string inside the class
     HTTPresponse &file_attachment(string data, MIME type);
     HTTPresponse &file_attachment(const char *filename, MIME type, uint64_t begin_offset = 0);
     // use for when you want a certain action executed when finishing file transfer, e.g. removing temporary file when done
@@ -61,7 +61,7 @@ public:
     HTTPresponse &attach_file(MIME type);
     HTTPresponse &attach_file(MIME type, std::function<void(const char *, void *)> action, void *action_object);
     HTTPresponse &access_control(string control);
-    HTTPresponse &content_range(uint64_t begin_offset); //only support begin offsets for now
+    HTTPresponse &content_range(uint64_t begin_offset); // only support begin offsets for now
     class filesegment_iterator
     {
     private:
@@ -86,7 +86,7 @@ public:
         filesegment_iterator &operator++(int);
         data *operator->();
     };
-    filesegment_iterator begin_file_transfer(size_t fragment_size = 8 * (1 << 10) /* 8KB */);
+    filesegment_iterator begin_file_transfer(size_t fragment_size = 32 * (1 << 10) /* 32KB */);
     string get_filename();
     bool is_multifragment_transfer();
     bool is_promise_transfer();
