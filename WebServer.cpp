@@ -705,8 +705,9 @@ void WebServer::run()
     while (1)
     {
         // std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
-        std::cout << "nr de fisiere netrimise " << unsent_files.size() << '\n';
-        tmp_fds = read_fds;
+        // std::cout << "nr de fisiere netrimise " << unsent_files.size() << '\n';
+        std::cout << "maximul este: " << fdmax << '\n';
+        tmp_fds = read_fds; // TODO: move this
         int available_requests;
         if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)
         {
