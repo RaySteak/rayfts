@@ -706,14 +706,6 @@ void WebServer::run()
     {
         // std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
         // std::cout << "nr de fisiere netrimise " << unsent_files.size() << '\n';
-        int numaram = 0;
-        tmp_fds = read_fds;
-        for (int i = 0; i < fdmax; i++)
-        {
-            if (FD_ISSET(i, &tmp_fds))
-                numaram++;
-        }
-        std::cout << "sunt " << numaram << '\n';
         tmp_fds = read_fds; // TODO: move this
         int available_requests;
         if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)
