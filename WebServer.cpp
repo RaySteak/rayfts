@@ -777,7 +777,8 @@ void WebServer::run()
                 map_iterator++;
                 continue;
             }
-            n = send_exactly(map_iterator->first, map_iterator->second->fragment, map_iterator->second->size);
+            // n = send_exactly(map_iterator->first, map_iterator->second->fragment, map_iterator->second->size);
+            n = send(map_iterator->first, map_iterator->second->fragment, map_iterator->second->size, 0);
             if (n < 0)
             {
                 close_connection(map_iterator->first, false);
