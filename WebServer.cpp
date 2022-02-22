@@ -9,6 +9,7 @@
 #include <wait.h>
 #include <boost/filesystem.hpp>
 #include <sstream>
+#include <fcntl.h>
 
 using namespace web_utils;
 using namespace arduino_constants;
@@ -705,8 +706,7 @@ void WebServer::run()
     while (1)
     {
         // std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
-        // std::cout << "nr de fisiere netrimise " << unsent_files.size() << '\n';
-        tmp_fds = read_fds; // TODO: move this
+        tmp_fds = read_fds;
         int available_requests;
         if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)
         {
@@ -769,8 +769,7 @@ void WebServer::run()
                 map_iterator++;
                 continue;
             }
-            // n = send_exactly(map_iterator->first, map_iterator->second->fragment, map_iterator->second->size);
-            n = send(map_iterator->first, map_iterator->second->fragment, map_iterator->second->size, 0);
+            n = send_exactly(map_iterator->first, map_iterator->second->fragment, map_iterator->second->size);
             if (n < 0)
             {
                 close_connection(map_iterator->first, false);
@@ -863,6 +862,8 @@ void WebServer::run()
                         DIE(newsockfd < 0, "accept");
                         FD_SET(newsockfd, &read_fds);
                         fdmax = newsockfd > fdmax ? newsockfd : fdmax;
+                        ret = fcntl(newsockfd, F_SETFL, fcntl(newsockfd, F_GETFL, 0) | O_NONBLOCK);
+                        DIE(ret < 0, "fcntl");
                     }
                     else
                     {
