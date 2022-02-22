@@ -772,6 +772,7 @@ void WebServer::run()
             n = send_exactly(map_iterator->first, map_iterator->second->fragment, map_iterator->second->size);
             if (n < 0)
             {
+                std::cout << "Hopa cumva a ajuns n mai mic ca 0\n";
                 close_connection(map_iterator->first, false);
                 map_iterator = unsent_files.erase(map_iterator);
             }
