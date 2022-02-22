@@ -769,16 +769,20 @@ void WebServer::run()
                 map_iterator++;
                 continue;
             }
-            n = send_exactly(map_iterator->first, map_iterator->second->fragment, map_iterator->second->size);
+            n = send(map_iterator->first, map_iterator->second->fragment + map_iterator->second->cur_frag_sent, map_iterator->second->size - map_iterator->second->cur_frag_sent, 0);
             if (n < 0)
             {
-                std::cout << "Hopa cumva a ajuns n mai mic ca 0\n";
-                close_connection(map_iterator->first, false);
-                map_iterator = unsent_files.erase(map_iterator);
+                if (errno != EAGAIN && errno != EWOULDBLOCK)
+                {
+                    close_connection(map_iterator->first, false);
+                    map_iterator = unsent_files.erase(map_iterator);
+                }
             }
             else
             {
-                map_iterator->second++;
+                map_iterator->second->cur_frag_sent += n;
+                if (map_iterator->second->cur_frag_sent == map_iterator->second->size)
+                    map_iterator->second++;
                 if (map_iterator->second.has_next())
                 {
                     map_iterator++;

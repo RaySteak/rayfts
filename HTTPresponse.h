@@ -69,6 +69,7 @@ public:
         {
             size_t size = 0;
             char *fragment = NULL;
+            size_t cur_frag_sent = 0;
         } file_data;
         size_t max_fragment_size, send_fragment_size;
         uint64_t remaining = 0;

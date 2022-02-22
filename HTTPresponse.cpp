@@ -252,6 +252,7 @@ HTTPresponse::filesegment_iterator &HTTPresponse::filesegment_iterator::operator
     file->read(file_data.fragment, send_fragment_size);
     file_data.size = file->gcount();
     remaining -= file_data.size;
+    file_data.cur_frag_sent = 0;
     return *this;
 }
 
