@@ -769,7 +769,7 @@ void WebServer::run()
                 map_iterator++;
                 continue;
             }
-            n = send(map_iterator->first, map_iterator->second->fragment + map_iterator->second->cur_frag_sent, map_iterator->second->size - map_iterator->second->cur_frag_sent, 0);
+            n = send(map_iterator->first, map_iterator->second->fragment + map_iterator->second->cur_frag_sent, map_iterator->second->size - map_iterator->second->cur_frag_sent, MSG_DONTWAIT);
             if (n < 0)
             {
                 if (errno != EAGAIN && errno != EWOULDBLOCK)
@@ -867,8 +867,8 @@ void WebServer::run()
                         DIE(newsockfd < 0, "accept");
                         FD_SET(newsockfd, &read_fds);
                         fdmax = newsockfd > fdmax ? newsockfd : fdmax;
-                        ret = fcntl(newsockfd, F_SETFL, fcntl(newsockfd, F_GETFL, 0) | O_NONBLOCK);
-                        DIE(ret < 0, "fcntl");
+                        // ret = fcntl(newsockfd, F_SETFL, fcntl(newsockfd, F_GETFL, 0) | O_NONBLOCK);
+                        // DIE(ret < 0, "fcntl");
                     }
                     else
                     {
