@@ -21,6 +21,8 @@ ping_device::~ping_device()
 
 void ping_device::add_device(type t, std::string ip, uint16_t port, unsigned int timeout_ms)
 {
+    std::lock_guard<std::mutex> lck_grd_devices(devices_mutex);
+    std::lock_guard<std::mutex> lck_grd_states(states_mutex);
     devices.push_back({ip, t, port, timeout_ms});
     states += '0';
 }

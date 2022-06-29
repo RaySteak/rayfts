@@ -109,7 +109,7 @@ async function zipCheck(id) {
     var size = 20,
         linewidth = 4;
     canvas.width = canvas.height = size;
-    var folder_name = filename_td.firstChild.title; // this as well
+    var folder_name = filename_td.firstChild.title; // this will change as well
     var nr_fails = 0;
     var drawCircle = function(percentage) {
         ctx.clearRect(0, 0, size, size);
@@ -224,7 +224,7 @@ window.onload = function() {
     drawDoubleCircle('#efefef', options.lineWidth, 100, options.percent, 0);
 }
 
-// abort so it dose not look stuck
+// abort so it does not look stuck
 window.onunload = () => {
     writableStream.abort()
         // also possible to call abort on the writer you got from `getWriter()`
@@ -236,3 +236,10 @@ window.onbeforeunload = evt => {
         evt.returnValue = `Are you sure you want to leave?`;
     }
 }
+
+var refresh_cookie = setInterval(() => {
+    $.ajax({
+        url: "/",
+        type: "GET"
+    })
+}, 5 * 60 * 1000)
