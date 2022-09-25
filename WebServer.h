@@ -95,7 +95,7 @@ private:
 
     inline void init_server_params(int port, const char *user, const char *path);
     int send_exactly(int fd, const char *buffer, size_t count);
-    int recv_exactly(int fd, char *buffer, size_t count, timeval t);
+    int recv_exactly(int fd, char *buffer, size_t count);
     int recv_http_header(int fd, char *buffer, int max, int &header_size);
     void close_connection(int fd, bool erase_from_sets);
     int process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, uint64_t &total);

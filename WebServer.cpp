@@ -129,7 +129,7 @@ int WebServer::send_exactly(int fd, const char *buffer, size_t count)
     return nr;
 }
 
-int WebServer::recv_exactly(int fd, char *buffer, size_t count, timeval t) // TODO: implement timeval
+int WebServer::recv_exactly(int fd, char *buffer, size_t count) // TODO: find a way to stop using this so it isn't blocking
 {
     int nr = 0;
     while (count)
@@ -826,7 +826,7 @@ void WebServer::run()
                 continue;
             }
 
-            n = recv_exactly(map_iterator->first, f.get_next_buffer(), f.remaining > max_alloc ? max_alloc : f.remaining, {0, 0}); // TODO: also change timeval here
+            n = recv_exactly(map_iterator->first, f.get_next_buffer(), f.remaining > max_alloc ? max_alloc : f.remaining); // TODO: used here, should use something else (see func def)
             if (n <= 0)
             {
                 close_connection(map_iterator->first, false);
