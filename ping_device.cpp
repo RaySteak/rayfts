@@ -4,6 +4,7 @@
 #include <sys/wait.h>
 #include <functional>
 #include <fcntl.h>
+#include <thread>
 
 using namespace arduino_constants;
 

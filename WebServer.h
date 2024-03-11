@@ -68,7 +68,7 @@ private:
         }
     };
 
-    string user, pass;
+    string user, pass_digest;
     int listenfd, newsockfd, port, udpfd;
     char buffer[BUFLEN + 1];
     struct sockaddr_in serv_addr, cli_addr;
@@ -93,7 +93,7 @@ private:
     unordered_set<string> iots;
     ping_device ping_machine{};
 
-    inline void init_server_params(int port, const char *user, const char *path);
+    inline void init_server_params(int port, const char *user, const char *pass_digest);
     int send_exactly(int fd, const char *buffer, size_t count);
     int recv_exactly(int fd, char *buffer, size_t count);
     int recv_http_header(int fd, char *buffer, int max, int &header_size);

@@ -13,20 +13,23 @@ debug: LDFLAGS := $(filter-out -s, $(LDFLAGS))
 debug: CFLAGS += -g -DSERVER_DEBUG
 debug: server
 
-server: server.o WebServer.o HTTPresponse.o Cookie.o SessionCookie.o web_utils.o wake_on_lan.o ping_device.o common_utils.o arduino/arduino_constants.o
+server: server.o WebServer.o HTTPresponse.o Cookie.o SessionCookie.o web_utils.o wake_on_lan.o ping_device.o common_utils.o arduino/arduino_constants.o crypto/sha256.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 %.o: %.cpp $(HEADERS)
 	$(CC) $(CFLAGS) -o $@ $<
 
-arduino/arduino_constants.o: arduino/arduino_constants.cpp
+arduino/%.o: arduino/%.cpp
+	$(CC) $(CFLAGS) -o $@ $<
+
+crypto/%.o: crypto/%.cpp
 	$(CC) $(CFLAGS) -o $@ $<
 
 clean:
-	rm -rf server *.o
+	rm -rf server *.o arduino/*.o crypto/*.o
 
 run_server_debug: debug run_server
 
 run_server: server
 	clear
-	./server 42069 a a
+	./server 42069 a ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb

@@ -3,6 +3,7 @@
 #include "wake_on_lan.h"
 #include "remote_shutdown/remote_shutdown.h"
 #include "arduino/arduino_constants.h"
+#include "crypto/sha256.h"
 #include <algorithm>
 #include <set>
 #include <spawn.h>
@@ -21,10 +22,10 @@ using std::unordered_map;
 
 namespace fs = boost::filesystem;
 
-void WebServer::init_server_params(int port, const char *user, const char *pass)
+void WebServer::init_server_params(int port, const char *user, const char *pass_digest)
 {
     this->user = user;
-    this->pass = pass;
+    this->pass_digest = pass_digest;
     FD_ZERO(&read_fds);
     FD_ZERO(&tmp_fds);
 
@@ -381,6 +382,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     auto not_implemented = HTTPresponse(501).file_attachment("html/not_implemented.html", HTTPresponse::MIME::html);
     auto not_found = HTTPresponse(404).file_attachment("html/not_found.html", HTTPresponse::MIME::html);
     const string redirect = "Redirecting...";
+    SHA256 sha256;
 
     Method method = get_method(data);
     char *url = strchr(data, '/');
@@ -407,7 +409,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             username = fields["user"];
             password = fields["psw"];
             remember = fields["remember"];
-            if (username == user && password == pass)
+            if (username == user && sha256(password) == pass_digest)
             {
                 SessionCookie *cookie = new SessionCookie();
                 cookies.insert({cookie->val(), cookie});
