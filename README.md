@@ -22,7 +22,7 @@ The server has 3 parameters: port, username and password SHA-256 digest, in this
 An example is listed in the Makefile, which you can try with `make run_server`, which runs the server on port 42069, with credentials "a" and "a". You can also use `make run_server_debug` which doesn't require a password. Just make sure to `make clean` if you want to use `make run_server` after running `make run_server_debug` or vice versa.
 
 ## Future improvements (in order of importance):
-- Store the password SHA-1 instead of the clear-text password.
+- When redirecting back to login page, direct user back to what he initially wanted to access
 - Set default value to existent name for renaming files (easy to do).
 - Ability to move files/directories to other directories.
 - Interface for public files.
