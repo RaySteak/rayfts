@@ -395,8 +395,14 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
 
     if (strstr(url, ".."))
         return HTTPresponse(401).file_attachment(string("Incercati sa ma hackati dar in balta va-necati"), HTTPresponse::MIME::text);
-    else if (!strcmp(url, "/login"))
+    else if (!startcmp(url, "/login"))
     {
+        auto desired_location = get_action_and_truncate(url_string, false);
+        if (url_string != "/login" && url_string != "/login/")
+            return not_found;
+            
+        desired_location = desired_location == "" ? "/" : desired_location;
+
         switch (method)
         {
         case Method::GET:
@@ -413,7 +419,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             {
                 SessionCookie *cookie = new SessionCookie();
                 cookies.insert({cookie->val(), cookie});
-                return HTTPresponse(302).cookie(cookie).location("/").file_attachment(redirect, HTTPresponse::MIME::text);
+                return HTTPresponse(302).cookie(cookie).location(desired_location).file_attachment(redirect, HTTPresponse::MIME::text);
             }
             return HTTPresponse(401).file_attachment("html/login_error.html", HTTPresponse::MIME::html);
         }
@@ -442,7 +448,8 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     else if (!startcmp(url, "/files/") || !strcmp(url, "/") || !startcmp(url, "/control")) // private stuff that requires passwords
     {
         ping_machine.wind(10);
-        HTTPresponse login_page = HTTPresponse(302).location("/login").file_attachment(redirect, HTTPresponse::MIME::text);
+        string redirect_login = url_string == "/" ? "/login" : "/login/~" + url_string;
+        HTTPresponse login_page = HTTPresponse(302).location(redirect_login).file_attachment(redirect, HTTPresponse::MIME::text);
         string cookie = http_fields["Cookie"];
         char *cookie_copy = strdup(cookie.c_str());
         auto cookie_map = get_content_fields(cookie_copy, "=", ";");

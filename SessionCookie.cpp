@@ -23,6 +23,11 @@ void SessionCookie::renew()
     left = SESSION_LENGTH * 60;
 }
 
+string SessionCookie::expiry()
+{
+    return "Max-Age=" + std::to_string(left);
+}
+
 string SessionCookie::identifier()
 {
     return "sessionId";

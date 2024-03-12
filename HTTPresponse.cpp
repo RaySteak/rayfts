@@ -295,7 +295,7 @@ HTTPresponse &HTTPresponse::cookie(Cookie *cookie)
 {
     if (!cookie)
         return *this;
-    response += "Set-Cookie: " + cookie->identifier() + "=" + cookie->val() + ";" + cookie->expiry() + CRLF;
+    response += "Set-Cookie: " + cookie->identifier() + "=" + cookie->val() + "; " + cookie->expiry() + "; Path=/" CRLF;
     return *this;
 }
 
