@@ -14,7 +14,6 @@ public:
     void over();
     void update();
     void renew();
-    string expiry();
     string identifier();
 
     SessionCookie();

@@ -13,6 +13,7 @@ _("ctxRename").addEventListener("click", function(event) {
     ctxRenameForm.style.left = (event.pageX - 10) + "px";
     ctxRenameForm.style.top = (event.pageY - 10) + "px";
     _("ctxRenameForm").action = "./" + currentContextedFile + "/" + _("ctxRenameForm").getAttribute("action");
+    _("ctxRenameForm").firstElementChild.value = currentContextedFile;
 }, false);
 
 
@@ -45,6 +46,7 @@ for (id = 0;; id++) {
 
 }
 
+// Old test renaming function
 function renameFile(filename) {
     $.ajax({
         xhr: function() {
