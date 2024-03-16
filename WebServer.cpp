@@ -314,6 +314,8 @@ void WebServer::process_cookies()
         cookie->update();
         if (cookie->is_expired())
         {
+            // TODO: find a more elegant method to delete only for session cookies
+            session_to_cut_files.erase(cookie->val());
             delete cookie;
             it = cookies.erase(it);
         }
@@ -454,18 +456,18 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         char *cookie_copy = strdup(cookie.c_str());
         auto cookie_map = get_content_fields(cookie_copy, "=", ";");
         free(cookie_copy);
-        bool found_login_cookie = false;
+        Cookie *user_session_cookie = NULL;
         for (auto &[name, val] : cookie_map)
         {
             auto found_cookie = cookies.find(val);
             if (name == "sessionId" && found_cookie != cookies.end())
             {
                 found_cookie->second->renew();
-                found_login_cookie = true;
+                user_session_cookie = found_cookie->second;
                 break;
             }
         }
-        if (!debug_mode && !found_login_cookie)
+        if (!debug_mode && !user_session_cookie)
             return login_page;
 
         url_string = url_string.substr(1);
@@ -601,6 +603,29 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                         return HTTPresponse(303).location("/" + parent_url).file_attachment(redirect, HTTPresponse::MIME::text);
                     fs::rename(url_string.substr(0, url_string.length() - 1), parent_url + adjusted_name);
                     return HTTPresponse(303).location("/" + parent_url).file_attachment(redirect, HTTPresponse::MIME::text);
+                }
+                if (user_session_cookie == NULL)
+                        return HTTPresponse(400).file_attachment(string("Please login to use this feature in debug mode"), HTTPresponse::MIME::text);
+
+                if (action == "cut")
+                {
+                    auto files = split_by_separators(content, "&");
+                    session_to_cut_files.insert({user_session_cookie->val(), {url_string, files}});
+                    return HTTPresponse(200).file_attachment(string("Cut registered succesfully"), HTTPresponse::MIME::text);
+                }
+                if (action == "paste")
+                {
+                    string source_path = session_to_cut_files[user_session_cookie->val()].first;
+                    auto files = session_to_cut_files[user_session_cookie->val()].second;
+                    for (auto &file : files)
+                    {
+                        if (!fs::exists(source_path + file) || fs::exists(url_string + file) ||
+                            ((source_path + file).rfind(url_string + file, 0) != std::string::npos) || !check_name(file))
+                            continue;
+                        fs::rename(source_path + file, url_string + file);
+                    }
+                    session_to_cut_files.erase(user_session_cookie->val());
+                    return HTTPresponse(200).file_attachment(string("Pasted successfully"), HTTPresponse::MIME::text);
                 }
                 return not_found;
             }

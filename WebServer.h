@@ -90,6 +90,9 @@ private:
     unordered_map<int, HTTPresponse::filesegment_iterator> unsent_files;
     unordered_map<int, file_receive_data> unreceived_files;
 
+    // Remembering cut files for each session cookie for file moving
+    unordered_map<string, std::pair<string, unordered_set<string>>> session_to_cut_files;
+
     unordered_set<string> iots;
     ping_device ping_machine{};
 

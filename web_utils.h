@@ -1,11 +1,13 @@
 #pragma once
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include <string.h>
 #include "HTTPresponse.h"
 
 namespace web_utils
 {
+    std::unordered_set<std::string> split_by_separators(char *content, const char *separators);
     std::unordered_map<std::string, std::string> get_content_fields(char *content, const char *is, const char *separators);
     std::string human_readable(uint64_t size);
     inline std::string add_image(std::string image)

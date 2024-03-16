@@ -17,10 +17,14 @@
             <menu title="Rename" id="ctxRename"></menu>
         </menu>
         <menu title="Edit">
-            <menu title="Cut"></menu>
+            <menu title="Cut" id="ctxCut"></menu>
             <menu title="Copy"></menu>
-            <menu title="Paste"></menu>
+            <menu title="Paste" id="ctxPaste"></menu>
         </menu>
+    </menu>
+
+    <menu id="ctxMenuShort">
+        <menu title="Paste" id="ctxPasteShort"></menu>
     </menu>
 
     <form action="~rename" method="post" id="ctxRenameForm">
@@ -31,7 +35,7 @@
     <div id="notepad">
     </div>
     <form action="./~delete" method="post">
-        <table>
+        <table id="table">
             <tbody>
                 <tr>
                     <td><img src="/images/blank.png" height="20" width="20" alt=" "></td>
