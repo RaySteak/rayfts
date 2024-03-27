@@ -37,6 +37,9 @@ void WebServer::init_server_params(int port, const char *user, const char *pass_
     serv_addr.sin_port = htons(port);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
+    memset((char *)&cli_addr, 0, sizeof(cli_addr));
+    memset(&socklen, 0, sizeof(socklen));
+
     if (debug_mode)
     {
         int option = 1;
@@ -233,7 +236,12 @@ void WebServer::close_connection(int fd, bool erase_from_sets)
 
     if (erase_from_sets)
     {
-        unsent_files.erase(fd);
+        auto found_it = unsent_files.find(fd);
+        if (found_it != unsent_files.end())
+        {
+            delete found_it->second;
+            unsent_files.erase(fd);
+        }
         unreceived_files.erase(fd);
     }
 
@@ -345,7 +353,7 @@ void WebServer::add_to_read(int fd)
     fdmax = fd > fdmax ? fd : fdmax;
 }
 
-HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folder_path, string folder_name)
+HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folder_path, string folder_name, HTTPresponse::ENCODING encoding)
 {
     auto file_future_it = fd_to_file_futures.find(fd);
     if (file_future_it != fd_to_file_futures.end())
@@ -359,7 +367,7 @@ HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folde
     {
         fd_to_file_futures.insert({fd, temp_path});
         temp_to_path.insert({temp_path, folder_path});
-        auto response = HTTPresponse(200).content_disposition(HTTPresponse::DISP::Attachment, folder_name + ".zip").file_promise(temp_path.c_str());
+        auto response = HTTPresponse(200).content_disposition(HTTPresponse::DISP::Attachment, folder_name + ".zip").transfer_encoding(encoding).file_promise(temp_path.c_str());
         unordered_set<int> new_set;
         new_set.insert(fd);
         string full_path = "./" + folder_path;
@@ -395,6 +403,19 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     strtok_r(NULL, "\r\n", &saved);
     auto http_fields = get_content_fields(saved, ": ", CRLF);
 
+    // For now, if browser supports it, use deflate every time.
+    // TODO: Define preferred encoding in a file insteaf of hard-coding it like this
+    auto accepted_encodings = split_by_separators(http_fields["Accept-Encoding"], ", ");
+    HTTPresponse::ENCODING encoding = HTTPresponse::ENCODING::none;
+    if (accepted_encodings.find("deflate") != accepted_encodings.end())
+        encoding = HTTPresponse::ENCODING::deflate;
+    if (accepted_encodings.find("gzip") != accepted_encodings.end())
+        encoding = HTTPresponse::ENCODING::gzip;
+
+    // TODO: !!! Remove this line when done implementing the rest for transfer compression !!!
+    encoding = HTTPresponse::ENCODING::none;
+    // !!!!!!!!!!!!!!!
+
     if (strstr(url, ".."))
         return HTTPresponse(401).file_attachment(string("Incercati sa ma hackati dar in balta va-necati"), HTTPresponse::MIME::text);
     else if (!startcmp(url, "/login"))
@@ -402,7 +423,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         auto desired_location = get_action_and_truncate(url_string, false);
         if (url_string != "/login" && url_string != "/login/")
             return not_found;
-            
+
         desired_location = desired_location == "" ? "/" : desired_location;
 
         switch (method)
@@ -441,7 +462,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             fs::directory_entry check(url + 1);
             if (!fs::exists(check) || fs::is_directory(check))
                 return not_found;
-            return HTTPresponse(200).access_control("*").file_attachment(url + 1, guess_mime_type(url + 1));
+            return HTTPresponse(200).access_control("*").transfer_encoding(encoding).file_attachment(url + 1, guess_mime_type(url + 1));
         }
         default:
             return not_implemented;
@@ -536,7 +557,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     int nr = std::count_if(fs::begin(it), fs::end(it), [](fs::directory_entry e)
                                            { return fs::is_regular_file(e); });
                     filename = filename + to_string(nr + 1) + ".zip";
-                    return queue_file_future(fd, filename, path, folder_name);
+                    return queue_file_future(fd, filename, path, folder_name, encoding);
                 }
                 if (action == "check")
                 {
@@ -572,11 +593,11 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     std::stringstream nr(range_fields["bytes"]);
                     nr >> begin_offset;
                     free(copy);
-                    return HTTPresponse(206).file_promise(path.c_str()).content_range(begin_offset).attach_file(HTTPresponse::MIME::octet_stream);
+                    return HTTPresponse(206).file_promise(path.c_str()).transfer_encoding(encoding).content_range(begin_offset).attach_file(HTTPresponse::MIME::octet_stream);
                 }
                 else
                 {
-                    return HTTPresponse(200).file_attachment(path.c_str(), HTTPresponse::MIME::octet_stream);
+                    return HTTPresponse(200).transfer_encoding(encoding).file_attachment(path.c_str(), HTTPresponse::MIME::octet_stream);
                 }
             }
             return HTTPresponse(200).file_attachment(generate_folder_html(path), HTTPresponse::MIME::html);
@@ -605,7 +626,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     return HTTPresponse(303).location("/" + parent_url).file_attachment(redirect, HTTPresponse::MIME::text);
                 }
                 if (user_session_cookie == NULL)
-                        return HTTPresponse(400).file_attachment(string("Please login to use this feature in debug mode"), HTTPresponse::MIME::text);
+                    return HTTPresponse(400).file_attachment(string("Please login to use this feature in debug mode"), HTTPresponse::MIME::text);
 
                 if (action == "cut")
                 {
@@ -803,27 +824,30 @@ void WebServer::run()
                 map_iterator++;
                 continue;
             }
-            n = send(map_iterator->first, map_iterator->second->fragment + map_iterator->second->cur_frag_sent, map_iterator->second->size - map_iterator->second->cur_frag_sent, MSG_DONTWAIT);
+            auto &fileseg_it = *map_iterator->second;
+            n = send(map_iterator->first, fileseg_it->fragment + fileseg_it->cur_frag_sent, fileseg_it->size - fileseg_it->cur_frag_sent, MSG_DONTWAIT);
             if (n < 0)
             {
                 if (errno != EAGAIN && errno != EWOULDBLOCK)
                 {
                     close_connection(map_iterator->first, false);
+                    delete map_iterator->second;
                     map_iterator = unsent_files.erase(map_iterator);
                 }
             }
             else
             {
-                map_iterator->second->cur_frag_sent += n;
-                if (map_iterator->second->cur_frag_sent == map_iterator->second->size)
-                    map_iterator->second++;
-                if (map_iterator->second.has_next())
+                fileseg_it->cur_frag_sent += n;
+                if (fileseg_it->cur_frag_sent == fileseg_it->size)
+                    fileseg_it++;
+                if (fileseg_it.has_next())
                 {
                     map_iterator++;
                 }
                 else
                 {
                     fd_to_file_futures.erase(map_iterator->first);
+                    delete map_iterator->second;
                     map_iterator = unsent_files.erase(map_iterator);
                 }
             }
@@ -924,11 +948,11 @@ void WebServer::run()
                             continue;
                         }
 
-                        std::cout << data << '\n';
+                        // std::cout << data << '\n';
                         std::cout << "Pregatim raspunsul...\n";
                         HTTPresponse response = process_http_request(data, header_size, n, total, i);
                         std::cout << "Trimitem raspunsul\n";
-                        // std::cout << response;
+                        std::cout << response;
                         if (response.is_phony())
                             continue;
                         if (!response.is_promise_transfer())
@@ -938,7 +962,7 @@ void WebServer::run()
                                 unsent_files.insert({i, response.begin_file_transfer()});
                         }
                         std::cout << "Am trimis raspunsul\n";
-                        delete data;
+                        delete[] data;
                     }
                 }
             }

@@ -231,11 +231,11 @@ window.onunload = () => {
     writer.abort()
 }
 
-window.onbeforeunload = evt => {
-    if (!done) {
-        evt.returnValue = `Are you sure you want to leave?`;
-    }
-}
+// window.onbeforeunload = evt => {
+//     if (!done) {
+//         evt.returnValue = `Are you sure you want to leave?`;
+//     }
+// }
 
 var refresh_cookie = setInterval(() => {
     $.ajax({

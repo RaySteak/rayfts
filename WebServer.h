@@ -87,7 +87,7 @@ private:
     unordered_map<int, string> fd_to_file_futures;
     lock_writable_unordered_map<string, pid_t> path_to_pid;
 
-    unordered_map<int, HTTPresponse::filesegment_iterator> unsent_files;
+    unordered_map<int, HTTPresponse::filesegment_iterator *> unsent_files;
     unordered_map<int, file_receive_data> unreceived_files;
 
     // Remembering cut files for each session cookie for file moving
@@ -105,7 +105,7 @@ private:
     void process_cookies();
     void remove_from_read(int fd);
     void add_to_read(int fd);
-    HTTPresponse queue_file_future(int fd, string temp_path, string folder_path, string folder_name);
+    HTTPresponse queue_file_future(int fd, string temp_path, string folder_path, string folder_name, HTTPresponse::ENCODING encoding);
     HTTPresponse process_http_request(char *data, int header_size, size_t read_size, uint64_t total_size, int fd);
 
     // int zip_folder(char *destination, char *path)
@@ -113,7 +113,7 @@ private:
     // this function uses /bin/7z by default for ease of implementation,
     // it can be replaced by any function by using the 4-parameter constructor
     // this function must free the memory of the two parameters
-    std::function<int(char *, char *, WebServer *)> zip_folder; //TODO: use lambda capture instead of passing the server
+    std::function<int(char *, char *, WebServer *)> zip_folder; // TODO: use lambda capture instead of passing the server
 
     const int timeout_milli = 100;
     static const size_t max_alloc = 16 * (1 << 10); // used for receive size

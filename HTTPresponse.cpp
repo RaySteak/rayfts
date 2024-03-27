@@ -1,5 +1,7 @@
 #include "HTTPresponse.h"
 #include <iostream>
+#include <string.h>
+#include <sstream>
 
 HTTPresponse::HTTPresponse(int code)
 {
@@ -131,6 +133,14 @@ HTTPresponse &HTTPresponse::location(string url)
     return *this;
 }
 
+HTTPresponse &HTTPresponse::cookie(Cookie *cookie)
+{
+    if (!cookie)
+        return *this;
+    response += "Set-Cookie: " + cookie->identifier() + "=" + cookie->val() + "; " + cookie->expiry() + "; Path=/" CRLF;
+    return *this;
+}
+
 HTTPresponse &HTTPresponse::data(const char *filename)
 {
     std::ifstream f(filename, std::ios::binary);
@@ -172,9 +182,14 @@ HTTPresponse &HTTPresponse::attach_file(MIME type)
 {
     is_promise = false;
     std::ifstream file(filename_str, std::ios::binary);
-    auto beg = file.tellg();
-    uint64_t total = file.seekg(0, std::ios::end).tellg() - beg - begin_offset;
-    content_type(type).content_length(total).end_header();
+    if (!chunked)
+    {
+        auto beg = file.tellg();
+        uint64_t total = file.seekg(0, std::ios::end).tellg() - beg - begin_offset;
+        content_type(type).content_length(total).end_header();
+        return *this;
+    }
+    content_type(type).end_header();
     return *this;
 }
 
@@ -202,9 +217,35 @@ HTTPresponse &HTTPresponse::content_range(uint64_t begin_offset)
     return *this;
 }
 
-HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, size_t max_fragment_size, uint64_t begin_offset)
+HTTPresponse &HTTPresponse::transfer_encoding(ENCODING encoding)
 {
-    this->max_fragment_size = send_fragment_size = max_fragment_size;
+    if (encoding == ENCODING::none)
+        return *this;
+    this->encoding = encoding;
+    response += "Transfer-Encoding: chunked" CRLF;
+    response += "Content-Encoding: ";
+    switch (encoding)
+    {
+    case ENCODING::deflate:
+        response += "deflate";
+        chunked = true;
+        break;
+    case ENCODING::gzip:
+        response += "gzip";
+        chunked = true;
+        break;
+
+    default:
+        break;
+    }
+    response += CRLF;
+    return *this;
+}
+
+HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, size_t read_fragment_size, size_t max_fragment_size, uint64_t begin_offset)
+{
+    this->read_fragment_size = read_fragment_size;
+    this->max_fragment_size = max_fragment_size;
     file = new std::ifstream(parent->filename_str, std::ios::binary);
     filename = parent->filename_str;
     action = parent->file_action;
@@ -214,6 +255,11 @@ HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, s
     file->seekg(begin_offset, std::ios::beg);
     file_data.fragment = new char[max_fragment_size];
     (*this)++;
+}
+
+HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, size_t read_fragment_size, uint64_t begin_offset)
+    : filesegment_iterator(parent, read_fragment_size, read_fragment_size, begin_offset)
+{
 }
 
 HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse::filesegment_iterator &&f)
@@ -227,7 +273,7 @@ HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse::filesegme
     f.file_data.fragment = NULL;
     f.file_data.size = 0;
     this->max_fragment_size = f.max_fragment_size;
-    this->send_fragment_size = f.send_fragment_size;
+    this->read_fragment_size = f.read_fragment_size;
     this->remaining = f.remaining;
 }
 
@@ -236,7 +282,7 @@ HTTPresponse::filesegment_iterator::~filesegment_iterator()
     if (file)
     {
         delete file;
-        delete file_data.fragment;
+        delete[] file_data.fragment;
         if (action)
             action(filename.c_str(), action_object);
     }
@@ -249,7 +295,7 @@ HTTPresponse::filesegment_iterator &HTTPresponse::filesegment_iterator::operator
         file_data.size = 0;
         return *this;
     }
-    file->read(file_data.fragment, send_fragment_size);
+    file->read(file_data.fragment, read_fragment_size);
     file_data.size = file->gcount();
     remaining -= file_data.size;
     file_data.cur_frag_sent = 0;
@@ -261,9 +307,117 @@ HTTPresponse::filesegment_iterator::data *HTTPresponse::filesegment_iterator::op
     return &file_data;
 }
 
-HTTPresponse::filesegment_iterator HTTPresponse::begin_file_transfer(size_t fragment_size)
+HTTPresponse::filesegment_iterator *HTTPresponse::begin_file_transfer(size_t fragment_size)
 {
-    return filesegment_iterator(this, fragment_size, begin_offset);
+    switch (encoding)
+    {
+    case ENCODING::gzip:
+    case ENCODING::deflate:
+        return new zlib_compress_iterator(this, fragment_size, begin_offset, encoding);
+    default:
+        return new filesegment_iterator(this, fragment_size, begin_offset);
+    }
+}
+
+size_t HTTPresponse::zlib_compress_iterator::init_deflate(size_t read_fragment_size, HTTPresponse::ENCODING encoding)
+{
+    stream.zalloc = Z_NULL;
+    stream.zfree = Z_NULL;
+    stream.opaque = Z_NULL;
+    stream.avail_in = 0;
+    stream.next_in = Z_NULL;
+
+    // This deflateInit2 call uses the same default parameters as deflateInit, the only change is choosing the encoding by setting bit 5 in the windowBits parameter
+    deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | (encoding == HTTPresponse::ENCODING::gzip ? 16 : 0), 8, Z_DEFAULT_STRATEGY);
+
+    max_compressed_size = deflateBound(&stream, read_fragment_size);
+    // Fragment buffer size chosen to accommodate the maximum size of the deflate output + bytes for the hex size sent by http
+    // + 2 bytes for CRLF + 5 bytes for "0 CRLF CRLF" sent at the end
+    max_compressed_fragment_size = max_compressed_size + max_number_of_hex_digits + 2 + 5;
+    return max_compressed_fragment_size;
+}
+
+void HTTPresponse::zlib_compress_iterator::deflate_chunk_fragment()
+{
+    stream.avail_in = file_data.size;
+    stream.next_in = (Bytef *)file_data.fragment;
+    stream.avail_out = max_compressed_size;
+    stream.next_out = (Bytef *)(compressed + max_number_of_hex_digits);
+
+    // TODO: try to find a way to do this with Z_NO_FLUSH instead of Z_SYNC_FLUSH. Or maybe try Z_PARTIAL_FLUSH as well
+    deflate(&stream, remaining ? Z_SYNC_FLUSH : Z_FINISH);
+
+    // TODO: test if reserving space in the buffer for number of bytes instead of copying the buffer is faster
+    size_t compressed_size = max_compressed_size - stream.avail_out;
+    std::stringstream hex_stream;
+    hex_stream << std::hex << compressed_size;
+    string compressed_size_hex_str = hex_stream.str() + CRLF;
+    size_t total_size = 0;
+    // Get where the fragment actually begins in the buffer
+    int fragment_pointer_offset = max_number_of_hex_digits - compressed_size_hex_str.length();
+
+    memcpy(compressed + fragment_pointer_offset, compressed_size_hex_str.c_str(), compressed_size_hex_str.length());
+    total_size += compressed_size_hex_str.length();
+    // memcpy(file_data.fragment + total_size, compressed, compressed_size);
+    total_size += compressed_size;
+    memcpy(compressed + fragment_pointer_offset + total_size, CRLF, strlen(CRLF));
+    total_size += strlen(CRLF);
+    if (!remaining)
+    {
+        memcpy(compressed + fragment_pointer_offset + total_size, "0" CRLF CRLF, strlen("0" CRLFx2));
+        total_size += strlen("0" CRLFx2);
+    }
+    file_data.size = total_size;
+
+    // Subtract the last offset from the fragment that contained the incoming data to get the actual fragment
+    char *actual_in_fragment = file_data.fragment - last_fragment_pointer_offset;
+    // Set new fragment to the compressed data
+    file_data.fragment = compressed + fragment_pointer_offset;
+    // Update the offset
+    last_fragment_pointer_offset = fragment_pointer_offset;
+    // Set compressed to old fragment
+    compressed = actual_in_fragment;
+}
+
+HTTPresponse::zlib_compress_iterator::zlib_compress_iterator(HTTPresponse *parent, size_t read_fragment_size, uint64_t begin_offset, HTTPresponse::ENCODING encoding)
+    : HTTPresponse::filesegment_iterator(parent, read_fragment_size, init_deflate(read_fragment_size, encoding), begin_offset)
+{
+    // Ties in with the in-class initialization of compressed. If we move this to init_deflate, compressed should
+    // *not* be initialized to NULL in the class definition anymore or else it gets overwritten
+    compressed = new char[max_compressed_fragment_size];
+    // Initially, the data doesn't come offset
+    last_fragment_pointer_offset = 0;
+
+    deflate_chunk_fragment();
+}
+
+HTTPresponse::zlib_compress_iterator::zlib_compress_iterator(HTTPresponse::zlib_compress_iterator &&f)
+    : HTTPresponse::filesegment_iterator(std::move(f))
+{
+    this->stream = f.stream;
+    this->compressed = f.compressed;
+    f.compressed = NULL;
+}
+
+HTTPresponse::zlib_compress_iterator::~zlib_compress_iterator()
+{
+    if (file)
+    {
+        // Undo last offset on fragment
+        file_data.fragment -= last_fragment_pointer_offset;
+        delete[] compressed;
+        deflateEnd(&stream);
+    }
+}
+
+HTTPresponse::zlib_compress_iterator &HTTPresponse::zlib_compress_iterator::operator++(int)
+{
+    filesegment_iterator::operator++(1);
+    if (!file_data.size)
+        return *this;
+
+    deflate_chunk_fragment();
+    return *this;
 }
 
 string HTTPresponse::get_filename()
@@ -289,14 +443,6 @@ bool HTTPresponse::is_promise_transfer()
 bool HTTPresponse::is_phony()
 {
     return response == "";
-}
-
-HTTPresponse &HTTPresponse::cookie(Cookie *cookie)
-{
-    if (!cookie)
-        return *this;
-    response += "Set-Cookie: " + cookie->identifier() + "=" + cookie->val() + "; " + cookie->expiry() + "; Path=/" CRLF;
-    return *this;
 }
 
 const char *HTTPresponse::to_c_str()

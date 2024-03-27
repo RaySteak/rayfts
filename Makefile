@@ -3,7 +3,7 @@
 CC = g++
 CFLAGS = -Wall -Wextra -std=c++17 -O3 -D_FILE_OFFSET_BITS=64 -Wno-psabi -c
 LDFLAGS = -s
-LDLIBS = -lboost_filesystem -lboost_system -lpthread
+LDLIBS = -lboost_filesystem -lboost_system -lpthread -lz
 HEADERS = lock_writable_unordered_map.h web_utils.h common_utils.h WebServer.h HTTPresponse.h Cookie.h SessionCookie.h wake_on_lan.h ping_device.h arduino/arduino_constants.h
 
 all: server
@@ -33,3 +33,11 @@ run_server_debug: debug run_server
 run_server: server
 	clear
 	./server 42069 a ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb
+
+run_valgrind: debug
+	clear
+	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./server 42069 a ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb
+
+run_gdb: debug
+	clear
+	gdb --args ./server 42069 a ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb

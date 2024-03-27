@@ -10,8 +10,8 @@ namespace fs = boost::filesystem;
 using std::set;
 using std::string;
 using std::to_string;
-using std::unordered_set;
 using std::unordered_map;
+using std::unordered_set;
 using web_utils::add_image;
 using web_utils::add_table_image;
 using web_utils::human_readable;
@@ -21,6 +21,14 @@ unordered_set<string> web_utils::split_by_separators(char *content, const char *
     unordered_set<string> fields;
     for (char *p = strtok(content, separators); p; p = strtok(NULL, separators))
         fields.insert({p});
+    return fields;
+}
+
+unordered_set<string> web_utils::split_by_separators(string content, const char *separators)
+{
+    char *copy = strdup(content.c_str());
+    unordered_set<string> fields = split_by_separators(copy, separators);
+    free(copy);
     return fields;
 }
 

@@ -1,7 +1,7 @@
 server
 files/*
 *.o
-settings.json
+.vscode/*
 .gdb_history
 WolList.txt
 remote_shutdown/remote_shutdown
