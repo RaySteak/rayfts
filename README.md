@@ -22,7 +22,6 @@ The server has 3 parameters: port, username and password SHA-256 digest, in this
 An example is listed in the Makefile, which you can try with `make run_server`, which runs the server on port 42069, with credentials "a" and "a". You can also use `make run_server_debug` which doesn't require a password. Just make sure to `make clean` if you want to use `make run_server` after running `make run_server_debug` or vice versa.
 
 ## Future improvements (in order of importance):
-- HTTP gzip support for faster file transfer
 - Interface for public files.
 - Directory interface auto-refreshing to always display up-to-date files by using either polling or finding an easy way to implement websockets in C++, which would also mean replacing all other polling instances with websocket (e.g. Device state in the IoT page).
 - Displaying of extra information when pasting fails.

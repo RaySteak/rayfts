@@ -4,14 +4,35 @@ var ctxRenameForm = _("ctxRenameForm");
 var currentContextedFile;
 var currentContextedRow;
 
+function setMenuWidths(menu) {
+    if (menu.firstElementChild == null)
+        return;
+
+    let maxWidth = 0;
+
+    for (let cur = menu.firstElementChild; cur != null; cur = cur.nextElementSibling) {
+        let width = cur.offsetWidth;
+        maxWidth = width > maxWidth ? width : maxWidth;
+        setMenuWidths(cur);
+    }
+
+    for (let cur = menu.firstElementChild; cur; cur = cur.nextElementSibling) {
+        cur.style.width = maxWidth + "px";
+    }
+}
+
+setMenuWidths(ctxMenu);
+setMenuWidths(ctxMenuShort);
+
 // Menu utils
 function hideMenu(menu, type) {
     return function(event) {
         menu.style.display = "";
+        menu.style.visibility = "";
         menu.style.left = "";
         menu.style.top = "";
         if (type == "normal") {
-            currentContextedRow.lastElementChild.firstElementChild.checked = false;
+            currentContextedRow.firstElementChild.nextElementSibling.nextElementSibling.nextElementSibling.firstElementChild.checked = false;
         }
     }
 }
@@ -30,6 +51,7 @@ function showMenu(menu, type) {
         currentContextedFile = event.currentTarget.firstChild.nextSibling.firstChild.title;
         currentContextedRow = event.currentTarget;
         menu.style.display = "block";
+        menu.style.visibility = "visible";
         menu.style.left = (event.pageX - 10) + "px";
         menu.style.top = (event.pageY - 10) + "px";
     }
@@ -72,6 +94,22 @@ document.addEventListener("click", function(event) {
     ctxMenu.style.display = "";
     ctxMenu.style.left = "";
     ctxMenu.style.top = "";
+}, false);
+
+// Fast download
+_("ctxEncDownload").addEventListener("click", function (event) {
+    var a = document.createElement("a");
+    // TODO: !!!!!!when changing table structure this will also change
+    type = currentContextedRow.firstElementChild.firstElementChild.src.split("/").at(-1).split(".")[0];
+    //
+    if (type == "file") {
+        a.href = window.location.pathname + currentContextedFile + "/~encDownload";
+        a.click();
+        a.remove();
+    } else {
+        a.href = window.location.pathname + currentContextedFile + "/~encArchive";
+        download_check_zip(parseInt(currentContextedRow.id.substring(3)));
+    }
 }, false);
 
 // Cut

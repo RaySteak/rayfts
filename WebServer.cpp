@@ -404,17 +404,13 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     auto http_fields = get_content_fields(saved, ": ", CRLF);
 
     // For now, if browser supports it, use deflate every time.
-    // TODO: Define preferred encoding in a file insteaf of hard-coding it like this
+    // TODO: Define preferred encoding in a file instead of hard-coding it like this
     auto accepted_encodings = split_by_separators(http_fields["Accept-Encoding"], ", ");
     HTTPresponse::ENCODING encoding = HTTPresponse::ENCODING::none;
     if (accepted_encodings.find("deflate") != accepted_encodings.end())
         encoding = HTTPresponse::ENCODING::deflate;
     if (accepted_encodings.find("gzip") != accepted_encodings.end())
         encoding = HTTPresponse::ENCODING::gzip;
-
-    // TODO: !!! Remove this line when done implementing the rest for transfer compression !!!
-    encoding = HTTPresponse::ENCODING::none;
-    // !!!!!!!!!!!!!!!
 
     if (strstr(url, ".."))
         return HTTPresponse(401).file_attachment(string("Incercati sa ma hackati dar in balta va-necati"), HTTPresponse::MIME::text);
@@ -518,6 +514,8 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         switch (method)
         {
         case Method::GET:
+        {
+            string action;
             if (!strcmp(url, "/"))
                 return HTTPresponse(200).file_attachment("html/select.html", HTTPresponse::MIME::html);
             if (!startcmp(url, "/control"))
@@ -533,7 +531,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     response += "</script></body></html>";
                     return HTTPresponse(200).file_attachment(response, HTTPresponse::MIME::html);
                 }
-                auto action = get_action_and_truncate(url_string, false);
+                action = get_action_and_truncate(url_string, false);
                 if (action == "up")
                 {
                     string on_states = ping_machine.get_states();
@@ -547,8 +545,8 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             }
             if (doesnt_exist)
             {
-                string action = get_action_and_truncate(url_string);
-                if (action == "archive")
+                action = get_action_and_truncate(url_string);
+                if (action == "archive" || action == "encArchive")
                 {
                     size_t delim = url_string.find_last_of('/', url_string.length() - 2);
                     string folder_name = url_string.substr(delim + 1, url_string.size() - delim - 2);
@@ -557,6 +555,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     int nr = std::count_if(fs::begin(it), fs::end(it), [](fs::directory_entry e)
                                            { return fs::is_regular_file(e); });
                     filename = filename + to_string(nr + 1) + ".zip";
+                    encoding = action == "encArchive" ? encoding : HTTPresponse::ENCODING::none;
                     return queue_file_future(fd, filename, path, folder_name, encoding);
                 }
                 if (action == "check")
@@ -581,10 +580,14 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 {
                     return HTTPresponse(200).file_attachment("html/video.html", HTTPresponse::MIME::html);
                 }
-                return not_found;
+                if (action != "encDownload") // if it's fast download request, continue to the download
+                    return not_found;
+                url_string = url_string.substr(0, url_string.length() - 1); // remove the last '/' introduced by action
             }
-            if (!fs::is_directory(dir))
+            if (!fs::is_directory(url_string))
             {
+                string filename = url_string.substr(url_string.find_last_of('/') + 1);
+                encoding = action == "encDownload" ? encoding : HTTPresponse::ENCODING::none;
                 uint64_t begin_offset = 0;
                 if (http_fields["Range"] != "") // check if browser wants a start range
                 {
@@ -593,14 +596,22 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     std::stringstream nr(range_fields["bytes"]);
                     nr >> begin_offset;
                     free(copy);
-                    return HTTPresponse(206).file_promise(path.c_str()).transfer_encoding(encoding).content_range(begin_offset).attach_file(HTTPresponse::MIME::octet_stream);
+                    return HTTPresponse(206)
+                        .file_promise(url_string.c_str())
+                        .transfer_encoding(encoding)
+                        .content_disposition(HTTPresponse::DISP::Attachment, filename)
+                        .content_range(begin_offset)
+                        .attach_file(HTTPresponse::MIME::octet_stream);
                 }
-                else
-                {
-                    return HTTPresponse(200).transfer_encoding(encoding).file_attachment(path.c_str(), HTTPresponse::MIME::octet_stream);
-                }
+                return HTTPresponse(200)
+                    .transfer_encoding(encoding)
+                    .content_disposition(HTTPresponse::DISP::Attachment, filename)
+                    .file_attachment(url_string.c_str(), HTTPresponse::MIME::octet_stream);
             }
+            if (action == "encDownload")
+                return not_found;
             return HTTPresponse(200).file_attachment(generate_folder_html(path), HTTPresponse::MIME::html);
+        }
         case Method::POST:
         {
             if (doesnt_exist)
@@ -948,11 +959,11 @@ void WebServer::run()
                             continue;
                         }
 
-                        // std::cout << data << '\n';
+                        std::cout << data << '\n';
                         std::cout << "Pregatim raspunsul...\n";
                         HTTPresponse response = process_http_request(data, header_size, n, total, i);
                         std::cout << "Trimitem raspunsul\n";
-                        std::cout << response;
+                        // std::cout << response;
                         if (response.is_phony())
                             continue;
                         if (!response.is_promise_transfer())

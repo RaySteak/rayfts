@@ -8,13 +8,13 @@ if (perfEntries[0].type === "back_forward") {
     location.reload(true);
 }
 
-async function downloadZip(id) {
+async function downloadZip(id, useEncoding) {
     try {
         _("hidden_frame" + id).remove(); //remove any frame created by previous calls
     } catch (error) {}
     var filename_td = _("row" + id).firstChild.nextSibling;
     var folder_name = filename_td.firstChild.title;
-    folder_name += "/~archive";
+    folder_name += useEncoding ? "/~encArchive" : "/~archive";
     var url = window.location.pathname + folder_name;
     var iframe = document.createElement("iframe");
     document.body.appendChild(iframe);
@@ -166,8 +166,8 @@ async function zipCheck(id) {
 }
 
 
-async function download_check_zip(id) {
-    downloadZip(id).then();
+async function download_check_zip(id, useEncoding = false) {
+    downloadZip(id, useEncoding).then();
     zipCheck(id);
 }
 
@@ -231,11 +231,11 @@ window.onunload = () => {
     writer.abort()
 }
 
-// window.onbeforeunload = evt => {
-//     if (!done) {
-//         evt.returnValue = `Are you sure you want to leave?`;
-//     }
-// }
+window.onbeforeunload = evt => {
+    if (!done) {
+        evt.returnValue = `Are you sure you want to leave?`;
+    }
+}
 
 var refresh_cookie = setInterval(() => {
     $.ajax({

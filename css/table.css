@@ -74,12 +74,12 @@ table {
 }
 
 #ctxMenu {
-    display: none;
+    visibility: hidden;
     z-index: 100;
 }
 
 #ctxMenuShort {
-    display: none;
+    visibility: hidden;
     z-index: 100;
 }
 
@@ -103,6 +103,7 @@ menu {
     background-color: white;
     font-weight: normal;
     white-space: nowrap;
+    text-align: center;
 }
 
 menu:hover {
@@ -111,14 +112,15 @@ menu:hover {
 
 menu:hover>menu {
     display: block;
+    visibility: visible;
 }
 
 menu>menu {
-    display: none;
+    visibility: hidden;
     position: relative;
     top: -20px;
     left: 100%;
-    width: 60px;
+    width: fit-content;
     font-family: Georgia, 'Times New Roman', Times, serif;
 }
 
