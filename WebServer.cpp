@@ -412,10 +412,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     if (accepted_encodings.find("gzip") != accepted_encodings.end())
         encoding = HTTPresponse::ENCODING::gzip;
 
-    // TODO: remove (re-added because of major crash bug with transfer encoding implementation)
-    encoding = HTTPresponse::ENCODING::none;
-    //
-
     if (strstr(url, ".."))
         return HTTPresponse(401).file_attachment(string("Incercati sa ma hackati dar in balta va-necati"), HTTPresponse::MIME::text);
     else if (!startcmp(url, "/login"))

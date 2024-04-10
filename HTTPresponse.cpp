@@ -319,13 +319,15 @@ HTTPresponse::filesegment_iterator *HTTPresponse::begin_file_transfer(size_t fra
     }
 }
 
-size_t HTTPresponse::zlib_compress_iterator::init_deflate(size_t read_fragment_size, HTTPresponse::ENCODING encoding)
+size_t HTTPresponse::zlib_compress_iterator::init_deflate(size_t read_fragment_size, HTTPresponse::ENCODING encoding, int max_number_of_hex_digits)
 {
     stream.zalloc = Z_NULL;
     stream.zfree = Z_NULL;
     stream.opaque = Z_NULL;
     stream.avail_in = 0;
     stream.next_in = Z_NULL;
+
+    this->max_number_of_hex_digits = max_number_of_hex_digits;
 
     // This deflateInit2 call uses the same default parameters as deflateInit, the only change is choosing the encoding by setting bit 5 in the windowBits parameter
     deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | (encoding == HTTPresponse::ENCODING::gzip ? 16 : 0), 8, Z_DEFAULT_STRATEGY);
@@ -380,10 +382,12 @@ void HTTPresponse::zlib_compress_iterator::deflate_chunk_fragment()
 }
 
 HTTPresponse::zlib_compress_iterator::zlib_compress_iterator(HTTPresponse *parent, size_t read_fragment_size, uint64_t begin_offset, HTTPresponse::ENCODING encoding)
-    : HTTPresponse::filesegment_iterator(parent, read_fragment_size, init_deflate(read_fragment_size, encoding), begin_offset)
+    : HTTPresponse::filesegment_iterator(parent, read_fragment_size, init_deflate(read_fragment_size, encoding, 2 * sizeof(size_t)), begin_offset)
 {
     // Ties in with the in-class initialization of compressed. If we move this to init_deflate, compressed should
     // *not* be initialized to NULL in the class definition anymore or else it gets overwritten
+    // Same for max_number_of_hex_digits, in-class initialization is undefined when variable is used in
+    // initializer list
     compressed = new char[max_compressed_fragment_size];
     // Initially, the data doesn't come offset
     last_fragment_pointer_offset = 0;

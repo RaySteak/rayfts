@@ -109,13 +109,13 @@ public:
     private:
         z_stream stream;
         char *compressed = NULL;
-        const int max_number_of_hex_digits = 2 * sizeof(size_t); // 2 hex digits per byte, for the maximum size_t fragment size
+        int max_number_of_hex_digits; // 2 hex digits per byte, for the maximum size_t fragment size (see initializer list)
         int last_fragment_pointer_offset;
         // We don't init those to anything as it will override initialization lists
         size_t max_compressed_fragment_size; // Has additional http stuff (see comments in init_deflate implementation)
         size_t max_compressed_size;          // Maximum size zlib might output
 
-        inline size_t init_deflate(size_t read_fragment_size, HTTPresponse::ENCODING encoding);
+        inline size_t init_deflate(size_t read_fragment_size, HTTPresponse::ENCODING encoding, int max_number_of_hex_digits);
         void deflate_chunk_fragment();
 
     public:
