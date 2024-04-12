@@ -24,5 +24,7 @@ An example is listed in the Makefile, which you can try with `make run_server`, 
 ## Future improvements (in order of importance):
 - Interface for public files.
 - Directory interface auto-refreshing to always display up-to-date files by using either polling or finding an easy way to implement websockets in C++, which would also mean replacing all other polling instances with websocket (e.g. Device state in the IoT page).
+- Move 'delete' function into context menu.
 - Displaying of extra information when pasting fails.
 - File copy (easy to implement, but probably will not be implemented as it's not needed).
+- gzip encoded transfer for file uploading.
