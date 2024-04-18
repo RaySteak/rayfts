@@ -1,6 +1,9 @@
 server
 files/*
 *.o
+*.out
+*.log
+*.output
 .vscode/*
 .gdb_history
 WolList.txt
