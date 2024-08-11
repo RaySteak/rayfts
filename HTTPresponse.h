@@ -23,6 +23,7 @@ public:
         html,
         text,
         png,
+        jpeg,
         javascript,
         css,
         icon,

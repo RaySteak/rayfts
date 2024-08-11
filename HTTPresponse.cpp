@@ -87,6 +87,9 @@ HTTPresponse &HTTPresponse::content_type(MIME type)
     case MIME::png:
         response += "image/png";
         break;
+    case MIME::jpeg:
+        response += "image/jpeg";
+        break;
     case MIME::icon:
         response += "image/x-icon";
         break;

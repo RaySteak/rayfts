@@ -98,6 +98,8 @@ HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
 
     if (extension == "png")
         return HTTPresponse::MIME::png;
+    if (extension == "jpeg" || extension == "jpg")
+        return HTTPresponse::MIME::jpeg;
     if (extension == "js")
         return HTTPresponse::MIME::javascript;
     if (extension == "html")
@@ -110,6 +112,10 @@ HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
         return HTTPresponse::MIME::mkv;
     if (extension == "pdf")
         return HTTPresponse::MIME::pdf;
+    if (extension == "vs")
+        return HTTPresponse::MIME::text;
+    if (extension == "fs")
+        return HTTPresponse::MIME::text;
     // can't guess type, just return byte stream
     return HTTPresponse::MIME::octet_stream;
 }
