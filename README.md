@@ -23,6 +23,7 @@ An example is listed in the Makefile, which you can try with `make run_server`, 
 
 ## Future improvements (in order of importance):
 - Photo viewer for folder
+- Switch to salted SHA-3 (for resistance to length extension attacks)
 - More visual alert for user when upload fails
 - Interface for public files.
 - Directory interface auto-refreshing to always display up-to-date files by using either polling or finding an easy way to implement websockets in C++, which would also mean replacing all other polling instances with websocket (e.g. Device state in the IoT page).
