@@ -243,3 +243,6 @@ var refresh_cookie = setInterval(() => {
         type: "GET"
     })
 }, 5 * 60 * 1000)
+
+// Gallery
+$('#gallery').photobox('a',{ time:5000 });

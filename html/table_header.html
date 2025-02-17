@@ -3,12 +3,14 @@
 <head>
     <title>FileServer</title>
     <link rel="stylesheet" type="text/css" href="/css/table.css" />
+    <link rel="stylesheet" type="text/css" href="/css/photobox.css">
     <link rel="shortcut icon" href="/images/favicon.ico" />
     <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
     <link rel="preload" href="/images/cancel.png" as="image" />
     <base href="#">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="/js/common.js"></script>
+    <script src="/js/photobox.js"></script>
 </head>
 
 <body>
@@ -36,6 +38,7 @@
     <div id="notepad">
     </div>
     <form action="./~delete" method="post">
+        <div id='gallery'>
         <table id="table">
             <tbody>
                 <tr>
