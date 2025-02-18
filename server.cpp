@@ -3,13 +3,13 @@
 
 void usage(const char *exec)
 {
-    std::cerr << "Usage: " << exec << " server_port user password\n";
+    std::cerr << "Usage: " << exec << " server_port user salt hash\n";
 }
 
 int main(int argc, char **argv)
 {
     signal(SIGPIPE, SIG_IGN);
-    if (argc != 4) // incorrect arg count
+    if (argc != 5) // incorrect arg count
     {
         usage(argv[0]);
         return -1;
@@ -27,7 +27,7 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    WebServer *server = new (std::nothrow) WebServer(port, argv[2], argv[3]);
+    WebServer *server = new (std::nothrow) WebServer(port, argv[2], argv[3], argv[4]);
     DIE(server == NULL, "new");
 
     server->run();

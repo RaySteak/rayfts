@@ -68,7 +68,7 @@ private:
         }
     };
 
-    string user, pass_digest;
+    string user, salt, salt_pass_digest;
     int listenfd, newsockfd, port, udpfd;
     char buffer[BUFLEN + 1];
     struct sockaddr_in serv_addr, cli_addr;
@@ -96,7 +96,7 @@ private:
     unordered_set<string> iots;
     ping_device ping_machine{};
 
-    inline void init_server_params(int port, const char *user, const char *pass_digest);
+    inline void init_server_params(int port, const char *user, const char *salt, const char *salt_pass_digest);
     int send_exactly(int fd, const char *buffer, size_t count);
     int recv_exactly(int fd, char *buffer, size_t count);
     int recv_http_header(int fd, char *buffer, int max, int &header_size);
@@ -111,7 +111,7 @@ private:
     // int zip_folder(char *destination, char *path)
     // zips folder located at path/name and places it in destination
     // this function uses /bin/7z by default for ease of implementation,
-    // it can be replaced by any function by using the 4-parameter constructor
+    // it can be replaced by any function by using the 5-parameter constructor of WebServer
     // this function must free the memory of the two parameters
     std::function<int(char *, char *, WebServer *)> zip_folder; // TODO: use lambda capture instead of passing the server
 
@@ -138,8 +138,8 @@ public:
         nil
     };
 
-    WebServer(int port, const char *user, const char *path);
-    WebServer(int port, const char *user, const char *path, std::function<int(char *, char *, WebServer *)> zip_folder);
+    WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest);
+    WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest, std::function<int(char *, char *, WebServer *)> zip_folder);
     virtual ~WebServer();
     void run();
 };

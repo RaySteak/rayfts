@@ -6,6 +6,13 @@ LDFLAGS = -s
 LDLIBS = -lboost_filesystem -lboost_system -lpthread -lz
 HEADERS = lock_writable_unordered_map.h web_utils.h common_utils.h WebServer.h HTTPresponse.h Cookie.h SessionCookie.h wake_on_lan.h ping_device.h arduino/arduino_constants.h
 
+# Dummy server params
+PORT = 42069
+USER = a
+SALT = this_is_a_salt
+# SHA3-512 hash of the dummy salt concatenated with dummy password "a"
+HASH_DUMMY_PASSWORD = e072da9305f63fa35fc0b18d3c4b8e35994368567fcdf9d3675fd0503de9f764ca4a53ef19c428bd62419fe1f6792864deac8a00bdbfcbfce67bc835839856bb
+
 all: server
 
 debug: CFLAGS := $(filter-out -O3,$(CFLAGS))
@@ -13,7 +20,7 @@ debug: LDFLAGS := $(filter-out -s, $(LDFLAGS))
 debug: CFLAGS += -g -DSERVER_DEBUG
 debug: server
 
-server: server.o WebServer.o HTTPresponse.o Cookie.o SessionCookie.o web_utils.o wake_on_lan.o ping_device.o common_utils.o arduino/arduino_constants.o crypto/sha256.o
+server: server.o WebServer.o HTTPresponse.o Cookie.o SessionCookie.o web_utils.o wake_on_lan.o ping_device.o common_utils.o arduino/arduino_constants.o crypto/sha3.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 %.o: %.cpp $(HEADERS)
@@ -32,12 +39,12 @@ run_server_debug: debug run_server
 
 run_server: server
 	clear
-	./server 42069 a ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb
+	./server $(PORT) $(USER) $(SALT) $(HASH_DUMMY_PASSWORD)
 
 run_valgrind: debug
 	clear
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./server 42069 a ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb
+	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./server $(PORT) $(USER) $(SALT) $(HASH_DUMMY_PASSWORD)
 
 run_gdb: debug
 	clear
-	gdb --args ./server 42069 a ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb
+	gdb --args ./server $(PORT) $(USER) $(SALT) $(HASH_DUMMY_PASSWORD)

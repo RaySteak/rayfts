@@ -3,7 +3,7 @@
 #include "wake_on_lan.h"
 #include "remote_shutdown/remote_shutdown.h"
 #include "arduino/arduino_constants.h"
-#include "crypto/sha256.h"
+#include "crypto/sha3.h"
 #include <algorithm>
 #include <set>
 #include <spawn.h>
@@ -22,10 +22,11 @@ using std::unordered_map;
 
 namespace fs = boost::filesystem;
 
-void WebServer::init_server_params(int port, const char *user, const char *pass_digest)
+void WebServer::init_server_params(int port, const char *user, const char *salt, const char *salt_pass_digest)
 {
     this->user = user;
-    this->pass_digest = pass_digest;
+    this->salt = salt;
+    this->salt_pass_digest = salt_pass_digest;
     FD_ZERO(&read_fds);
     FD_ZERO(&tmp_fds);
 
@@ -89,9 +90,9 @@ void WebServer::init_server_params(int port, const char *user, const char *pass_
     }
 }
 
-WebServer::WebServer(int port, const char *user, const char *pass)
+WebServer::WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest)
 {
-    init_server_params(port, user, pass);
+    init_server_params(port, user, salt, salt_pass_digest);
 
     // default zip_folder function
     zip_folder = [](char *destination, char *path, WebServer *server)
@@ -112,9 +113,9 @@ WebServer::WebServer(int port, const char *user, const char *pass)
     };
 }
 
-WebServer::WebServer(int port, const char *user, const char *pass, std::function<int(char *destination, char *user, WebServer *)> zip_folder)
+WebServer::WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest, std::function<int(char *destination, char *user, WebServer *)> zip_folder)
 {
-    init_server_params(port, user, pass);
+    init_server_params(port, user, salt, salt_pass_digest);
 
     this->zip_folder = zip_folder;
 }
@@ -392,7 +393,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     auto not_implemented = HTTPresponse(501).file_attachment("html/not_implemented.html", HTTPresponse::MIME::html);
     auto not_found = HTTPresponse(404).file_attachment("html/not_found.html", HTTPresponse::MIME::html);
     const string redirect = "Redirecting...";
-    SHA256 sha256;
+    SHA3 sha3(SHA3::Bits::Bits512);
 
     Method method = get_method(data);
     char *url = strchr(data, '/');
@@ -434,7 +435,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             username = fields["user"];
             password = fields["psw"];
             remember = fields["remember"];
-            if (username == user && sha256(password) == pass_digest)
+            if (username == user && sha3(salt + password) == salt_pass_digest)
             {
                 SessionCookie *cookie = new SessionCookie();
                 cookies.insert({cookie->val(), cookie});
@@ -817,7 +818,7 @@ void WebServer::run()
                     send_exactly(connection, response.to_c_str(), response.size());
                     unsent_files.insert({connection, response.begin_file_transfer()});
                 }
-                downloading_futures.insert({map_iterator->first, std::make_pair(fds.size(), response)});
+                downloading_futures.insert({map_iterator->first, make_pair(fds.size(), response)});
                 path_to_pid.erase(map_iterator->first);
                 map_iterator = file_futures.erase(map_iterator);
                 continue;
