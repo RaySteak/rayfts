@@ -319,7 +319,6 @@
             }
 
             if( open ){
-                console.log("OPENN?????");
                 image.css({'transition':'0s'}).removeAttr('style'); // reset any transition that might be on the element (yes it's ugly)
                 overlay.show();
                 // Clean up if another gallery was viewed before, which had a thumbsList
@@ -342,9 +341,7 @@
                     overlay.addClass('hasArrows hasCounter')
 
                     // check is the autoplay button should be visible (per gallery) and if so, should it autoplay or not.
-                    console.log(options.time)
                     if( options.time > 1000 ){
-                        console.log("HAS AUTOPLAY");
                         overlay.addClass('hasAutoplay');
                         if( options.autoplay )
                             APControl.progress.start();
@@ -705,7 +702,6 @@
             options.autoplay = true;
         },
         pause : function(){
-            console.log("IN PAUSSEEEEE");
             clearTimeout(APControl.autoPlayTimer);
             APControl.progress.reset();
             autoplayBtn.addClass('play');
