@@ -488,7 +488,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         if (!debug_mode && !user_session_cookie)
             return login_page;
 
-        url_string = url_string.substr(1);
+        url_string = url_string.substr(1); // Skip the first '/' in url string for this path
         string path = url_string;
         fs::directory_entry dir;
         try
@@ -521,6 +521,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 return HTTPresponse(200).file_attachment("html/select.html", HTTPresponse::MIME::html);
             if (!startcmp(url, "/control"))
             {
+                // Check if main control page
                 if (!strcmp(url, "/control"))
                 {
                     auto wol_list = wol::wake_on_lan::parse_list("WolList.txt");
@@ -532,7 +533,11 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     response += "</script></body></html>";
                     return HTTPresponse(200).file_attachment(response, HTTPresponse::MIME::html);
                 }
+                // Check if any action on control page
                 action = get_action_and_truncate(url_string, false);
+                // Make sure after truncation it is exactly the url we want and not something like '/control/bla'
+                if (url_string != "control/")
+                    return not_found;
                 if (action == "up")
                 {
                     string on_states = ping_machine.get_states();
@@ -543,11 +548,23 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     }
                     return HTTPresponse(200).file_attachment(on_states, HTTPresponse::MIME::text);
                 }
+                return not_found;
             }
             if (doesnt_exist)
             {
                 action = get_action_and_truncate(url_string);
-                if (action == "archive" || action == "encArchive")
+                if (action == "") // Either no action or after removing the action file was not found
+                    return not_found;
+            }
+
+            // If this point has been reached, url is valid disk location or was valid disk location with action appended at the end
+            if (fs::is_directory(url_string)) // Directory entry
+            {
+                if (action == "") // Directory entry list page request
+                    return HTTPresponse(200).file_attachment("html/directory.html", HTTPresponse::MIME::html);
+                if (action == "entries") // Directory entry list request
+                    return HTTPresponse(200).file_attachment(generate_directory_data(url_string), HTTPresponse::MIME::text);
+                if (action == "archive" || action == "encArchive") // directory archive download request
                 {
                     size_t delim = url_string.find_last_of('/', url_string.length() - 2);
                     string folder_name = url_string.substr(delim + 1, url_string.size() - delim - 2);
@@ -559,13 +576,13 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     encoding = action == "encArchive" ? encoding : HTTPresponse::ENCODING::none;
                     return queue_file_future(fd, filename, path, folder_name, encoding);
                 }
-                if (action == "check")
+                if (action == "check") // directory archive status request
                 {
                     auto found_future = file_futures.find(url_string.substr(0, url_string.length() - 1));
                     if (found_future != file_futures.end())
                     {
                         uint64_t temp_size;
-                        try
+                        try // for the case when the zip function hasn't yet started writing the zip
                         {
                             temp_size = fs::file_size(std::get<3>(found_future->second));
                         }
@@ -577,41 +594,40 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                         return HTTPresponse(200).file_attachment(to_string(temp_size) + ' ' + to_string(full_size), HTTPresponse::MIME::text);
                     }
                 }
-                if (action == "play/") // used as a folder to simplify html
-                {
-                    return HTTPresponse(200).file_attachment("html/video.html", HTTPresponse::MIME::html);
-                }
-                if (action != "encDownload") // if it's fast download request, continue to the download
-                    return not_found;
-                url_string = url_string.substr(0, url_string.length() - 1); // remove the last '/' introduced by action
+                return not_found;
             }
-            if (!fs::is_directory(url_string))
+            // File entry
+            if (action == "play/") // Used as a folder to simplify html
+                return HTTPresponse(200).file_attachment("html/video.html", HTTPresponse::MIME::html);
+            if (action != "" && action != "encDownload") // If it's not any type of downlad, we have exhausted all possibilities, otherwise continue
+                return not_found;
+
+            if (url_string[url_string.length() - 1] == '/') // normalize url for filenames
+                url_string = url_string.substr(0, url_string.length() - 1);
+
+            string filename = url_string.substr(url_string.find_last_of('/') + 1);
+            encoding = action == "encDownload" ? encoding : HTTPresponse::ENCODING::none;
+            uint64_t begin_offset = 0;
+            if (http_fields["Range"] != "") // check if browser wants a start range
             {
-                string filename = url_string.substr(url_string.find_last_of('/') + 1);
-                encoding = action == "encDownload" ? encoding : HTTPresponse::ENCODING::none;
-                uint64_t begin_offset = 0;
-                if (http_fields["Range"] != "") // check if browser wants a start range
-                {
-                    char *copy = strdup(http_fields["Range"].c_str());
-                    auto range_fields = get_content_fields(copy, "=", ";");
-                    std::stringstream nr(range_fields["bytes"]);
-                    nr >> begin_offset;
-                    free(copy);
-                    return HTTPresponse(206)
-                        .file_promise(url_string.c_str())
-                        .transfer_encoding(encoding)
-                        .content_disposition(HTTPresponse::DISP::Attachment, filename)
-                        .content_range(begin_offset)
-                        .attach_file(HTTPresponse::MIME::octet_stream);
-                }
-                return HTTPresponse(200)
+                char *range = strdup(http_fields["Range"].c_str());
+                auto range_fields = get_content_fields(range, "=", ";");
+                std::stringstream range_num_stream(range_fields["bytes"]);
+                range_num_stream >> begin_offset;
+                free(range);
+                return HTTPresponse(206)
+                    .file_promise(url_string.c_str())
                     .transfer_encoding(encoding)
                     .content_disposition(HTTPresponse::DISP::Attachment, filename)
-                    .file_attachment(url_string.c_str(), HTTPresponse::MIME::octet_stream);
+                    .content_range(begin_offset)
+                    .attach_file(HTTPresponse::MIME::octet_stream);
             }
-            if (action == "encDownload")
-                return not_found;
-            return HTTPresponse(200).file_attachment(generate_folder_html(path), HTTPresponse::MIME::html);
+            std::cout << "WE EXIT THROUGH HERE!!!!\n";
+            std::cout << "URL STRING: " << url_string << "\n";
+            return HTTPresponse(200)
+                .transfer_encoding(encoding)
+                .content_disposition(HTTPresponse::DISP::Attachment, filename)
+                .file_attachment(url_string.c_str(), HTTPresponse::MIME::octet_stream);
         }
         case Method::POST:
         {

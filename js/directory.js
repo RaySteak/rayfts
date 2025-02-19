@@ -12,8 +12,9 @@ async function downloadZip(id, useEncoding) {
     try {
         _("hidden_frame" + id).remove(); //remove any frame created by previous calls
     } catch (error) {}
-    var filename_td = _("row" + id).firstChild.nextSibling;
-    var folder_name = filename_td.firstChild.title;
+    var filename_td = _("row" + id).firstElementChild.nextElementSibling;
+    var folder_name = filename_td.firstElementChild.title;
+    console.log(folder_name);
     folder_name += useEncoding ? "/~encArchive" : "/~archive";
     var url = window.location.pathname + folder_name;
     var iframe = document.createElement("iframe");
@@ -27,9 +28,15 @@ async function downloadZip(id, useEncoding) {
 
 function check() {
     var folder_name = _("folder_name").value;
-    var not_allowed = ["&", "/", "%", "~", "..", "="];
+    // var not_allowed = ["&", "/", "%", "~", "..", "="];
+    var not_allowed = ["/", ".."];
     var create_button = _("create_folder_button");
     var error_message = _("error");
+    if (folder_name === ".") {
+        error_message.innerHTML = "Names must not be '.'";
+        create_button.disabled = true;
+        return;
+    }
     if (folder_name.length > 255) {
         error_message.innerHTML = "Names must not be longer than 255 characters";
         create_button.disabled = true;
@@ -93,9 +100,9 @@ function cancel_zip(id) {
 }
 
 async function zipCheck(id) {
-    var filename_td = _("row" + id).firstChild.nextSibling;
-    console.log(filename_td.title);
-    var button = filename_td.firstChild.nextSibling; // !!! this will change if structure of table changes !!!
+    var filename_td = _("row" + id).firstElementChild.nextElementSibling;
+    var button = filename_td.firstElementChild.nextElementSibling; // !!! this will change if structure of table changes !!!
+    console.log(button);
     var cancel_button = button.cloneNode(true);
     cancel_button.setAttribute("style", "background-image: url('/images/cancel.png')"); //TODO: change image from node to attribute
     cancel_button.setAttribute("onclick", "cancel_zip(" + id + ")");
@@ -109,7 +116,7 @@ async function zipCheck(id) {
     var size = 20,
         linewidth = 4;
     canvas.width = canvas.height = size;
-    var folder_name = filename_td.firstChild.title; // this will change as well
+    var folder_name = filename_td.firstElementChild.title; // this will change as well
     var nr_fails = 0;
     var drawCircle = function(percentage) {
         ctx.clearRect(0, 0, size, size);
@@ -171,11 +178,13 @@ async function download_check_zip(id, useEncoding = false) {
     zipCheck(id);
 }
 
+var used, available;
+
 window.onload = function() {
-    var used = Number(_("used_space").innerHTML);
-    var available = Number(_('free_space').innerHTML);
-    _("free_space").remove();
-    _("used_space").remove();
+    // var used = Number(_("used_space").innerHTML);
+    // var available = Number(_('free_space').innerHTML);
+    // _("free_space").remove();
+    // _("used_space").remove();
     var el = _('available_space_graph');
     var options = {
         percent: used / available * 100,
@@ -246,3 +255,74 @@ var refresh_cookie = setInterval(() => {
 
 // Gallery
 $('#gallery').photobox('a',{ time:5000 });
+
+// Set used/total space and table directory entries
+
+function htmlToNode(html) {
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    const nNodes = template.content.childNodes.length;
+    if (nNodes !== 1) {
+        throw new Error(
+            `html parameter must represent a single node; got ${nNodes}. ` +
+            'Note that leading or trailing spaces around an element in your ' +
+            'HTML, like " <img/> ", get parsed as text nodes neighbouring ' +
+            'the element; call .trim() on your input to avoid this.'
+        );
+    }
+    return template.content.firstChild;
+}
+
+function human_readable_size(size) {
+    var decimal_threshold = 3;
+    var units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    var i = 0;
+    while (size > 1024) {
+        size /= 1024;
+        i++;
+    }
+    if (i < decimal_threshold)
+        return size.toFixed(0) + units[i];
+    return size.toFixed(2) + units[i];
+}
+
+function buildDirNode(rowNum, href, size, max_name_length = 30) {
+    let name = href.split('/')[0];
+    let is_directory = href[href.length - 1] == '/';
+    let is_video = href.endsWith('.mp4') || href.endsWith('.webm') || href.endsWith('.mkv');
+    let display_name = name.length > max_name_length ? name.substring(0, max_name_length) + " ... " : name + ' ';
+    let inner_html = `<tr style="background-color:#${rowNum % 2 == 0 ? "808080" : "FFFFFF"}" id=row${rowNum}>
+                            <td>
+                                <img src="${is_directory ? '/images/folder.png' : '/images/file.png'}" height="20" width="20" alt="N/A">
+                            </td>
+                            <td>
+                                <a href="${href}" title="${name}">${display_name}</a>` +
+                                (is_directory ? `<button onclick="download_check_zip(${rowNum})"/ type="button" style="background-image: url(\'/images/download.png\')">` : '') +
+                                (is_video ? `<a href="${name + "/~play/"}"><img src="/images/play.png" height="20" width="20" alt="N/A"></a>` : '') +
+                            `</td>
+                            <td>${is_directory ? "-" : human_readable_size(size)}</td>
+                            <td>
+                                <input type="checkbox" name="${name}">
+                            </td>
+                        </tr>`;
+    return htmlToNode(inner_html);
+}
+
+var directory_entries_request = $.ajax({
+    url: window.location.pathname + '~entries',
+    success: function(data) {
+        var entries = data.split('\n');
+        available = Number(entries[entries.length - 2]);
+        used = Number(entries[entries.length - 1]);
+        entries.pop(); entries.pop(); // Remove the available and used values
+        for (var i = 0; i < entries.length; i++) {
+            entry = entries[i].split(';');
+            let href = decodeURIComponent(entry[0]);
+            let size = entry[1];
+            
+            let new_entry = buildDirNode(i, href, size);
+            dir_entries.append(new_entry);
+        }
+        initializeCtxMenu();
+    }
+});

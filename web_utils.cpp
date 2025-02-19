@@ -12,9 +12,6 @@ using std::string;
 using std::to_string;
 using std::unordered_map;
 using std::unordered_set;
-using web_utils::add_image;
-using web_utils::add_table_image;
-using web_utils::human_readable;
 
 unordered_set<string> web_utils::split_by_separators(char *content, const char *separators)
 {
@@ -47,21 +44,6 @@ unordered_map<string, string> web_utils::get_content_fields(char *content, const
     return fields;
 }
 
-string web_utils::human_readable(uint64_t size)
-{
-    if (size >= 1LL << 30)
-    {
-        double real_size = double(size) / (1LL << 30);
-        int hr_size = int(real_size * 100);
-        return to_string(hr_size / 100) + "." + to_string(hr_size % 100) + "GB";
-    }
-    if (size >= 1 << 20)
-        return to_string(size / (1 << 20)) + "MB";
-    if (size >= 1 << 10)
-        return to_string(size / (1 << 10)) + "KB";
-    return to_string(size) + "B";
-}
-
 string web_utils::parse_webstring(string name, bool replace_plus)
 {
     const char hex_digits[] = "0123456789ABCDEF";
@@ -74,8 +56,13 @@ string web_utils::parse_webstring(string name, bool replace_plus)
     pos = 0;
     while ((pos = name.find('%', pos)) != string::npos)
     {
+        if (name.size() - pos <= 2)
+        {
+            pos++;
+            continue;
+        }
         char c1 = name[pos + 1], c2 = name[pos + 2];
-        if (name.size() - pos <= 2 || !strchr(hex_digits, c1) || !strchr(hex_digits, c2) || (c1 == '0' && c2 == '0'))
+        if (!strchr(hex_digits, c1) || !strchr(hex_digits, c2) || (c1 == '0' && c2 == '0'))
         {
             pos++;
             continue;
@@ -89,6 +76,26 @@ string web_utils::parse_webstring(string name, bool replace_plus)
     }
     pos = 0;
     return name;
+}
+
+string web_utils::encode_webstring(string name)
+{
+    const char hex_digits[] = "0123456789ABCDEF";
+    string encoded;
+    for (auto &c : name)
+    {
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
+        {
+            encoded += c;
+        }
+        else
+        {
+            encoded += '%';
+            encoded += hex_digits[c >> 4];
+            encoded += hex_digits[c & 0xF];
+        }
+    }
+    return encoded;
 }
 
 HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
@@ -122,7 +129,8 @@ HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
 
 bool web_utils::check_name(string name, const char *not_allowed)
 {
-    if (name.length() > 255 || name.find("..") != std::string::npos) // don't allow this by default to prevent path injection
+    // Don't allow ".." by default to prevent path injection. Also don't allow the name to be "." (curent directory)
+    if (name.length() > 255 || name.find("..") != std::string::npos || name == ".")
         return false;
     for (auto &c : name)
     {
@@ -146,8 +154,8 @@ uint64_t web_utils::get_folder_size(string folder_path)
 
 string web_utils::get_action_and_truncate(string &url, bool check_exists) // returns empty string on fail
 {
-    size_t pos = url.find("~");
-    if (pos != std::string::npos) // check for delete
+    size_t pos = url.find_last_of("~");
+    if (pos != std::string::npos) // check for action
     {
         string action = url.substr(pos + 1);
         url = url.substr(0, pos);
@@ -158,51 +166,18 @@ string web_utils::get_action_and_truncate(string &url, bool check_exists) // ret
     return "";
 }
 
-string web_utils::generate_folder_html(string path, const unsigned int max_name_length)
+string web_utils::generate_directory_data(string path)
 {
-    // TODO: resize PNGs used for this to smaller resolutions
-    auto cmp = [](fs::directory_entry a, fs::directory_entry b)
-    { return a.path().filename().string() < b.path().filename().string(); };
-    set<fs::directory_entry, decltype(cmp)> entries(cmp);
+    string data;
     for (auto &entry : fs::directory_iterator(path))
-        entries.insert(entry);
-    std::ifstream header("html/table_header.html", std::ios::binary);
-    string folder = std::string((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
-    header.close();
-    int i = 0;
-    for (auto &file : entries)
     {
-        folder += "<tr style=\"background-color:#" + (i % 2 ? string("FFFFFF") : string("808080")) + "\" id=row" + to_string(i) + ">";
-        string size, filename = file.path().filename().string(), short_filename = filename.substr(0, max_name_length) + (filename.length() > max_name_length ? " ...  " : "  ");
-        constexpr char tdbeg[] = "<td><a href=\"";
-        constexpr char tdend[] = "</a></td>";
-        string title = "title=\"" + filename + "\">";
-        if (!fs::is_directory(file))
-        {
-            HTTPresponse::MIME type = guess_mime_type(filename);
-            size = human_readable(fs::file_size(file));
-            folder += add_table_image("file.png");
-            folder += tdbeg + filename + "\" " + title + short_filename +
-                      (type == HTTPresponse::MIME::mp4 || type == HTTPresponse::MIME::mkv ? "</a><a href=\"" + filename + "/~play/\">" + add_image("play.png") : "") +
-                      tdend;
-        }
-        else
-        {
-            size = "-";
-            folder += add_table_image("folder.png");
-            folder += tdbeg + filename + "/\" " + title + short_filename +
-                      "</a><button onclick=\"download_check_zip(" + to_string(i) + ")\"/ type=\"button\"" + image_attribute("download.png") +
-                      +"></td>";
-        }
-        folder += "<td>" + size + "</td>";
-        folder += "<td><input type=\"checkbox\" name=\"" + filename + "\"></td> ";
-        folder += "</tr>";
-        i++;
+        string filename = entry.path().filename().string();
+        if (fs::is_directory(entry))
+            filename += "/";
+
+        data += encode_webstring(filename) + ";" + to_string(fs::is_directory(entry) ? get_folder_size(entry.path().string()) : fs::file_size(entry)) + "\n";
     }
-    std::ifstream footer("html/table_footer.html", std::ios::binary);
-    folder += std::string((std::istreambuf_iterator<char>(footer)), std::istreambuf_iterator<char>());
     auto stat = fs::space("files/");
-    folder += "<p hidden id=free_space>" + to_string(stat.capacity) + "</p><p hidden id=used_space>" + to_string(stat.capacity - stat.free) + "</p>";
-    folder += "</body></html>";
-    return folder;
+    data += to_string(stat.capacity) + "\n" + to_string(stat.capacity - stat.free);
+    return data;
 }

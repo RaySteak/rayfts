@@ -24,6 +24,18 @@ function setMenuWidths(menu) {
 setMenuWidths(ctxMenu);
 setMenuWidths(ctxMenuShort);
 
+// ctxMenu initialize function to be called when directory has been initialized
+function initializeCtxMenu() {
+    for (id = 0;; id++) {
+        var row = _("row" + id);
+        if (!row)
+            break;
+
+        console.log(row);
+        row.addEventListener("contextmenu", showMenu(ctxMenu, "normal"), false);
+    }
+}
+
 // Menu utils
 function hideMenu(menu, type) {
     return function(event) {
@@ -59,14 +71,6 @@ function showMenu(menu, type) {
 
 // ctxMenu
 ctxMenu.addEventListener("mouseleave", hideMenu(ctxMenu, "normal"), false);
-
-for (id = 0;; id++) {
-    var row = _("row" + id);
-    if (!row)
-        break;
-
-    row.addEventListener("contextmenu", showMenu(ctxMenu, "normal"), false);
-}
 
 // ctxMenuShort
 ctxMenuShort.addEventListener("mouseleave", hideMenu(ctxMenuShort, "short"), false);

@@ -10,8 +10,8 @@ HEADERS = lock_writable_unordered_map.h web_utils.h common_utils.h WebServer.h H
 PORT = 42069
 USER = a
 SALT = this_is_a_salt
-# SHA3-512 hash of the dummy salt concatenated with dummy password "a"
-HASH_DUMMY_PASSWORD = e072da9305f63fa35fc0b18d3c4b8e35994368567fcdf9d3675fd0503de9f764ca4a53ef19c428bd62419fe1f6792864deac8a00bdbfcbfce67bc835839856bb
+# SHA3-512 digest of the dummy salt concatenated with dummy password "a"
+DIGEST_DUMMY_SALT_PASS = e072da9305f63fa35fc0b18d3c4b8e35994368567fcdf9d3675fd0503de9f764ca4a53ef19c428bd62419fe1f6792864deac8a00bdbfcbfce67bc835839856bb
 
 all: server
 
@@ -39,12 +39,12 @@ run_server_debug: debug run_server
 
 run_server: server
 	clear
-	./server $(PORT) $(USER) $(SALT) $(HASH_DUMMY_PASSWORD)
+	./server $(PORT) $(USER) $(SALT) $(DIGEST_DUMMY_SALT_PASS)
 
 run_valgrind: debug
 	clear
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./server $(PORT) $(USER) $(SALT) $(HASH_DUMMY_PASSWORD)
+	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./server $(PORT) $(USER) $(SALT) $(DIGEST_DUMMY_SALT_PASS)
 
 run_gdb: debug
 	clear
-	gdb --args ./server $(PORT) $(USER) $(SALT) $(HASH_DUMMY_PASSWORD)
+	gdb --args ./server $(PORT) $(USER) $(SALT) $(DIGEST_DUMMY_SALT_PASS)
