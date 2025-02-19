@@ -14,7 +14,6 @@ async function downloadZip(id, useEncoding) {
     } catch (error) {}
     var filename_td = _("row" + id).firstElementChild.nextElementSibling;
     var folder_name = filename_td.firstElementChild.title;
-    console.log(folder_name);
     folder_name += useEncoding ? "/~encArchive" : "/~archive";
     var url = window.location.pathname + folder_name;
     var iframe = document.createElement("iframe");
@@ -101,8 +100,7 @@ function cancel_zip(id) {
 
 async function zipCheck(id) {
     var filename_td = _("row" + id).firstElementChild.nextElementSibling;
-    var button = filename_td.firstElementChild.nextElementSibling; // !!! this will change if structure of table changes !!!
-    console.log(button);
+    var button = filename_td.firstElementChild.nextElementSibling; // !!! this will change if structure of table changes !!!    
     var cancel_button = button.cloneNode(true);
     cancel_button.setAttribute("style", "background-image: url('/images/cancel.png')"); //TODO: change image from node to attribute
     cancel_button.setAttribute("onclick", "cancel_zip(" + id + ")");
@@ -180,11 +178,12 @@ async function download_check_zip(id, useEncoding = false) {
 
 var used, available;
 
-window.onload = function() {
+function drawMemoryUsageGraph() {
     // var used = Number(_("used_space").innerHTML);
     // var available = Number(_('free_space').innerHTML);
     // _("free_space").remove();
     // _("used_space").remove();
+
     var el = _('available_space_graph');
     var options = {
         percent: used / available * 100,
@@ -311,18 +310,25 @@ function buildDirNode(rowNum, href, size, max_name_length = 30) {
 var directory_entries_request = $.ajax({
     url: window.location.pathname + '~entries',
     success: function(data) {
-        var entries = data.split('\n');
-        available = Number(entries[entries.length - 2]);
-        used = Number(entries[entries.length - 1]);
-        entries.pop(); entries.pop(); // Remove the available and used values
+        var elements = data.split('\n');
+        available = Number(elements[elements.length - 2]);
+        used = Number(elements[elements.length - 1]);
+        elements.pop(); elements.pop(); // Remove the available and used values
+        
+        var entries = [];
+        for (var i = 0; i < elements.length; i++) {
+            element = elements[i].split(';');
+            let href = decodeURIComponent(element[0]);
+            let size = element[1];
+            entries.push({"href": href, "size": size});
+        }
+
+        entries.sort((a, b) => a.href.localeCompare(b.href));
+
         for (var i = 0; i < entries.length; i++) {
-            entry = entries[i].split(';');
-            let href = decodeURIComponent(entry[0]);
-            let size = entry[1];
-            
-            let new_entry = buildDirNode(i, href, size);
+            let new_entry = buildDirNode(i, entries[i].href, entries[i].size);
             dir_entries.append(new_entry);
         }
-        initializeCtxMenu();
+        window.onload = drawMemoryUsageGraph;
     }
 });

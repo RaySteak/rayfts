@@ -391,6 +391,7 @@
                 // only generates the thumbStripe once, and listen for any DOM changes on the selector element, if so, re-generate
                 // This is done on "mouseenter" so images will not get called unless it's liekly that they would be needed
                 this.selector.one('mouseenter.photobox', this.target, function(e){
+                    // !!! TODO: maybe mouseclick would work even better for loading this. Or when the thumbList is brought up only
                     that.thumbsList = thumbsStripe.generate.apply(that);
                 });
 
@@ -447,7 +448,8 @@
 
                         // if this gallery has thumbs
                         //if( that.options.thumbs ){
-                            that.thumbsList = thumbsStripe.generate.apply(that);
+                            // !!! This here was the culprit that loaded all images when the page is loaded
+                            // that.thumbsList = thumbsStripe.generate.apply(that);
                             thumbs.html( that.thumbsList );
                         //}
 

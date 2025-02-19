@@ -82,7 +82,7 @@ string web_utils::encode_webstring(string name)
 {
     const char hex_digits[] = "0123456789ABCDEF";
     string encoded;
-    for (auto &c : name)
+    for (auto c : name)
     {
         if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
         {
@@ -175,9 +175,12 @@ string web_utils::generate_directory_data(string path)
         if (fs::is_directory(entry))
             filename += "/";
 
-        data += encode_webstring(filename) + ";" + to_string(fs::is_directory(entry) ? get_folder_size(entry.path().string()) : fs::file_size(entry)) + "\n";
+        // get_folder_size can be added here to get directory size as well. However, this will make page loading very slow
+        // on a low-end device if the directory tree is massive.
+        data += encode_webstring(filename) + ";" + (fs::is_directory(entry) ? "-" : to_string(fs::file_size(entry))) + "\n";
     }
     auto stat = fs::space("files/");
     data += to_string(stat.capacity) + "\n" + to_string(stat.capacity - stat.free);
+    std::cout << data << '\n';
     return data;
 }
