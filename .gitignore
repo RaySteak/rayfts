@@ -7,5 +7,6 @@ files/*
 .vscode/*
 .gdb_history
 WolList.txt
+PublicPaths.txt
 remote_shutdown/remote_shutdown
 public/*
