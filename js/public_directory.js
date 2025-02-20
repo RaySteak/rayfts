@@ -178,60 +178,6 @@ async function download_check_zip(id, useEncoding = false) {
 
 var used, available;
 
-function drawMemoryUsageGraph() {
-    // var used = Number(_("used_space").innerHTML);
-    // var available = Number(_('free_space').innerHTML);
-    // _("free_space").remove();
-    // _("used_space").remove();
-
-    var el = _('available_space_graph');
-    var options = {
-        percent: used / available * 100,
-        size: el.getAttribute('data-size') || 220,
-        lineWidth: el.getAttribute('data-line') || 15,
-        rotate: el.getAttribute('data-rotate') || 0
-    }
-    var canvas = document.createElement('canvas');
-    el.appendChild(document.createElement('br'));
-    el.appendChild(document.createElement('br'));
-    el.appendChild(document.createElement('br'));
-    var span = document.createElement('span');
-    span.textContent = Math.round((used / Math.pow(2, 30)) * 100) / 100 + " / " + Math.round(available / Math.pow(2, 30));
-    if (typeof(G_vmlCanvasManager) !== 'undefined') {
-        G_vmlCanvasManager.initElement(canvas);
-    }
-    var ctx = canvas.getContext('2d');
-    canvas.width = canvas.height = options.size;
-    el.appendChild(span);
-    var span2 = document.createElement('span');
-    span2.textContent = "GB used";
-    el.appendChild(span2);
-    el.appendChild(canvas);
-    ctx.translate(options.size / 2, options.size / 2);
-    ctx.rotate((-1 / 2 + options.rotate / 180) * Math.PI);
-    var radius = (options.size - options.lineWidth) / 2;
-    var drawDoubleCircle = function(bg_color, lineWidth, bg_percent, fg_percent, current) {
-        ctx.clearRect(-options.size / 2, -options.size / 2, options.size, options.size);
-        ctx.beginPath();
-        ctx.arc(0, 0, radius, 0, Math.PI * 2 * current / bg_percent, false);
-        ctx.strokeStyle = bg_color;
-        ctx.lineCap = 'round';
-        ctx.lineWidth = lineWidth;
-        ctx.stroke();
-        var current_fill = current / bg_percent * fg_percent / 100;
-        ctx.strokeStyle = "rgb(" + (current_fill * 255) + "," + ((Math.max(1 - current_fill, 0.1)) * 255) + "," + 0 + ")";
-        ctx.beginPath();
-        ctx.arc(0, 0, radius, 0, Math.PI * 2 * current / bg_percent * fg_percent / 100, false);
-        ctx.stroke();
-        if (current < bg_percent) {
-            requestAnimationFrame(function() {
-                drawDoubleCircle(bg_color, lineWidth, bg_percent, fg_percent, current + 1);
-            });
-        }
-    };
-    drawDoubleCircle('#efefef', options.lineWidth, 100, options.percent, 0);
-}
-
 // abort so it does not look stuck
 window.onunload = () => {
     writableStream.abort()
@@ -296,7 +242,6 @@ function buildDirNode(rowNum, href, size, max_name_length = 30) {
                             </td>
                             <td>
                                 <a href="${href}" title="${name}">${display_name}</a>` +
-                                (is_directory ? `<button onclick="download_check_zip(${rowNum})"/ type="button" style="background-image: url(\'/images/download.png\')">` : '') +
                                 (is_video ? `<a href="${name + "/~play/"}"><img src="/images/play.png" height="20" width="20" alt="N/A"></a>` : '') +
                             `</td>
                             <td>${is_directory ? "-" : human_readable_size(size)}</td>
@@ -329,7 +274,5 @@ var directory_entries_request = $.ajax({
             let new_entry = buildDirNode(i, entries[i].href, entries[i].size);
             dir_entries.append(new_entry);
         }
-        window.onload = drawMemoryUsageGraph;
-        initializeCtxMenu();
     }
 });

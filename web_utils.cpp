@@ -181,6 +181,19 @@ string web_utils::generate_directory_data(string path)
     }
     auto stat = fs::space("files/");
     data += to_string(stat.capacity) + "\n" + to_string(stat.capacity - stat.free);
-    std::cout << data << '\n';
     return data;
+}
+
+bool web_utils::check_path_matches(std::string path, std::vector<std::string> match_list)
+{
+    get_action_and_truncate(path, false); // TODO: this will no longer be needed when action processing is finally done properly (with query params)
+    if (path[path.length() - 1] == '/')
+        path = path.substr(0, path.length() - 1);
+
+    for (auto &m : match_list)
+    {
+        if (path.rfind(m, 0) == 0 && (m.length() == path.length() || path[m.length()] == '/'))
+            return true;
+    }
+    return false;
 }

@@ -96,6 +96,8 @@ private:
     unordered_set<string> iots;
     ping_device ping_machine{};
 
+    vector<string> public_paths;
+
     inline void init_server_params(int port, const char *user, const char *salt, const char *salt_pass_digest);
     int send_exactly(int fd, const char *buffer, size_t count);
     int recv_exactly(int fd, char *buffer, size_t count);

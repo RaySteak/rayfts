@@ -41,12 +41,12 @@ void WebServer::init_server_params(int port, const char *user, const char *salt,
     memset((char *)&cli_addr, 0, sizeof(cli_addr));
     memset(&socklen, 0, sizeof(socklen));
 
-    if (debug_mode)
-    {
-        int option = 1;
-        ret = setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
-        DIE(ret < 0, "reuse_addr");
-    }
+    // if (debug_mode)
+    // {
+    int option = 1;
+    ret = setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
+    DIE(ret < 0, "reuse_addr");
+    // }
     ret = bind(listenfd, (sockaddr *)&serv_addr, sizeof(sockaddr));
     DIE(ret < 0, "bind");
 
@@ -76,6 +76,7 @@ void WebServer::init_server_params(int port, const char *user, const char *salt,
     udpfd = socket(AF_INET, SOCK_DGRAM, 0);
     DIE(udpfd < 0, "socket");
 
+    // Initialize everything related to controlling devices
     auto wol_list = wol::wake_on_lan::parse_list("WolList.txt");
     for (auto &w : wol_list)
     {
@@ -88,6 +89,12 @@ void WebServer::init_server_params(int port, const char *user, const char *salt,
             iots.insert(w.get_ip());
         }
     }
+
+    // Initialize everything related to public files
+    std::ifstream public_paths_file("PublicPaths.txt");
+    std::string line;
+    while (std::getline(public_paths_file, line))
+        public_paths.push_back(line);
 }
 
 WebServer::WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest)
@@ -485,10 +492,20 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 break;
             }
         }
-        if (!debug_mode && !user_session_cookie)
-            return login_page;
 
         url_string = url_string.substr(1); // Skip the first '/' in url string for this path
+
+        bool limited_access = false;
+        if (!debug_mode)
+        {
+            if (!user_session_cookie)
+            {
+                if (!web_utils::check_path_matches(url_string, public_paths))
+                    return login_page;
+                limited_access = true;
+            }
+        }
+
         string path = url_string;
         fs::directory_entry dir;
         try
@@ -500,6 +517,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             return HTTPresponse(422).file_attachment(string("422 Unprocessable entity"), HTTPresponse::MIME::text);
         }
 
+        // Normalize access to directories to end with '/' and access to files to not end with '/'
         bool doesnt_exist = !fs::exists(dir);
         if (!doesnt_exist)
         {
@@ -561,7 +579,8 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             if (fs::is_directory(url_string)) // Directory entry
             {
                 if (action == "") // Directory entry list page request
-                    return HTTPresponse(200).file_attachment("html/directory.html", HTTPresponse::MIME::html);
+                    return limited_access ? HTTPresponse(200).file_attachment("html/public_directory.html", HTTPresponse::MIME::html)
+                                          : HTTPresponse(200).file_attachment("html/directory.html", HTTPresponse::MIME::html);
                 if (action == "entries") // Directory entry list request
                     return HTTPresponse(200).file_attachment(generate_directory_data(url_string), HTTPresponse::MIME::text);
                 if (action == "archive" || action == "encArchive") // directory archive download request
@@ -622,8 +641,6 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     .content_range(begin_offset)
                     .attach_file(HTTPresponse::MIME::octet_stream);
             }
-            std::cout << "WE EXIT THROUGH HERE!!!!\n";
-            std::cout << "URL STRING: " << url_string << "\n";
             return HTTPresponse(200)
                 .transfer_encoding(encoding)
                 .content_disposition(HTTPresponse::DISP::Attachment, filename)
@@ -631,6 +648,9 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         }
         case Method::POST:
         {
+            if (limited_access) // No POST allowed for limited access
+                return not_implemented;
+
             if (doesnt_exist)
             {
                 string action = get_action_and_truncate(url_string);

@@ -57,7 +57,9 @@ std::vector<wake_on_lan> wake_on_lan::parse_list(const char *filename)
 {
     std::vector<wake_on_lan> list;
     char buffer[LISTS_LINE_MAX];
+    std::cout << "Parsing list\n";
     std::ifstream file(filename, std::ios::in);
+    std::cout << "File open status: " << file.is_open() << '\n';
     while (file.getline(buffer, LISTS_LINE_MAX))
     {
         char *mac = strtok(buffer, " \t");       // for wake on lan

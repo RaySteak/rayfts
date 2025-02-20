@@ -19,4 +19,5 @@ namespace web_utils
     uint64_t get_folder_size(std::string folder_path);
     std::string get_action_and_truncate(std::string &url, bool check_exists = true);
     std::string generate_directory_data(std::string path);
+    bool check_path_matches(std::string path, std::vector<std::string> match_list);
 };
