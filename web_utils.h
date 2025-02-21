@@ -7,6 +7,13 @@
 
 namespace web_utils
 {
+    enum class MatchType
+    {
+        none = 0,
+        exact,
+        prefix,
+    };
+
     std::unordered_set<std::string> split_by_separators(char *content, const char *separators);
     std::unordered_set<std::string> split_by_separators(string content, const char *separators);
     std::unordered_map<std::string, std::string> get_content_fields(char *content, const char *is, const char *separators);
@@ -18,6 +25,6 @@ namespace web_utils
     bool check_name(std::string name, const char *not_allowed = "/"); // default list of characters not accepted
     uint64_t get_folder_size(std::string folder_path);
     std::string get_action_and_truncate(std::string &url, bool check_exists = true);
-    std::string generate_directory_data(std::string path);
-    bool check_path_matches(std::string path, std::vector<std::string> match_list);
+    std::string generate_directory_data(string path, std::vector<string> &public_paths, bool cur_public);
+    MatchType check_path_matches(std::string path, std::vector<std::string> &match_list);
 };

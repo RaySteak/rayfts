@@ -25,6 +25,8 @@
             <menu title="Copy"></menu>
             <menu title="Paste" id="ctxPaste"></menu>
         </menu>
+        <menu title="Make Public" id="ctxMakePublic" style="display:none"></menu>
+        <menu title="Make Private" id="ctxMakePrivate" style="display:none"></menu>
         <menu title="Fast download" id="ctxEncDownload"></menu>
     </menu>
 
@@ -37,7 +39,8 @@
         <input type="submit" value="Rename">
     </form>
 
-    <div id="notepad">
+    <div id="curDirPublicText" style="display:none">
+        <p>This directory is public!</p>
     </div>
     <form action="./~delete" method="post">
         <div id='gallery'>

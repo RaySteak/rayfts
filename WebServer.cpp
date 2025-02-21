@@ -22,6 +22,9 @@ using std::unordered_map;
 
 namespace fs = boost::filesystem;
 
+const char *const WebServer::ConfigFiles::wol_list = "WolList.txt";
+const char *const WebServer::ConfigFiles::public_paths = "PublicPaths.txt";
+
 void WebServer::init_server_params(int port, const char *user, const char *salt, const char *salt_pass_digest)
 {
     this->user = user;
@@ -77,7 +80,7 @@ void WebServer::init_server_params(int port, const char *user, const char *salt,
     DIE(udpfd < 0, "socket");
 
     // Initialize everything related to controlling devices
-    auto wol_list = wol::wake_on_lan::parse_list("WolList.txt");
+    auto wol_list = wol::wake_on_lan::parse_list(ConfigFiles::wol_list);
     for (auto &w : wol_list)
     {
         if (w.get_type() == "arduino")
@@ -91,7 +94,7 @@ void WebServer::init_server_params(int port, const char *user, const char *salt,
     }
 
     // Initialize everything related to public files
-    std::ifstream public_paths_file("PublicPaths.txt");
+    std::ifstream public_paths_file(ConfigFiles::public_paths);
     std::string line;
     while (std::getline(public_paths_file, line))
         public_paths.push_back(line);
@@ -495,12 +498,13 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
 
         url_string = url_string.substr(1); // Skip the first '/' in url string for this path
 
+        bool is_public = web_utils::check_path_matches(url_string, public_paths) != web_utils::MatchType::none;
         bool limited_access = false;
         if (!debug_mode)
         {
             if (!user_session_cookie)
             {
-                if (!web_utils::check_path_matches(url_string, public_paths))
+                if (!is_public)
                     return login_page;
                 limited_access = true;
             }
@@ -542,7 +546,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 // Check if main control page
                 if (!strcmp(url, "/control"))
                 {
-                    auto wol_list = wol::wake_on_lan::parse_list("WolList.txt");
+                    auto wol_list = wol::wake_on_lan::parse_list(ConfigFiles::wol_list);
                     std::ifstream control("html/control.html", std::ios::binary);
                     string response = std::string((std::istreambuf_iterator<char>(control)), std::istreambuf_iterator<char>());
                     response += "<script>";
@@ -582,7 +586,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                     return limited_access ? HTTPresponse(200).file_attachment("html/public_directory.html", HTTPresponse::MIME::html)
                                           : HTTPresponse(200).file_attachment("html/directory.html", HTTPresponse::MIME::html);
                 if (action == "entries") // Directory entry list request
-                    return HTTPresponse(200).file_attachment(generate_directory_data(url_string), HTTPresponse::MIME::text);
+                    return HTTPresponse(200).file_attachment(generate_directory_data(url_string, public_paths, is_public), HTTPresponse::MIME::text);
                 if (action == "archive" || action == "encArchive") // directory archive download request
                 {
                     size_t delim = url_string.find_last_of('/', url_string.length() - 2);
@@ -762,6 +766,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
         case Method::PATCH:
         {
             auto fields = get_content_fields(content, "=", "&");
+            // Control page actions
             if (!strcmp(url, "/control/~awaken"))
             {
                 if (fields["turn_on"] == "" || fields["type"] == "" || fields["ip"] == "")
@@ -794,6 +799,41 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 }
                 return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);
             }
+
+            // Change path permissions (make public / private)
+            if (doesnt_exist)
+                return not_found;
+
+            if (fields["permission"] == "") // TODO: maybe make it so you can't change permission of files/ directory.
+                return HTTPresponse(400).end_header();
+
+            if (url_string[url_string.length() - 1] == '/') // normalize url
+                url_string = url_string.substr(0, url_string.length() - 1);
+
+            if (fields["permission"] == "public")
+            {
+                std::ofstream public_paths_file(ConfigFiles::public_paths, std::ios::app);
+                if (!public_paths_file.is_open())
+                    return HTTPresponse(500).file_attachment(string("Couldn't open public paths file"), HTTPresponse::MIME::text);
+                if (check_path_matches(url_string, public_paths) != web_utils::MatchType::none)
+                    return HTTPresponse(200).file_attachment(string("Path is already public"), HTTPresponse::MIME::text);
+                public_paths.push_back(url_string);
+                public_paths_file << url_string << '\n';
+
+                return HTTPresponse(200).file_attachment(string("Path is now public"), HTTPresponse::MIME::text);
+            }
+            else if (fields["permission"] == "private")
+            {
+                std::ofstream public_paths_file(ConfigFiles::public_paths);
+                if (!public_paths_file.is_open())
+                    return HTTPresponse(500).file_attachment(string("Couldn't open public paths file"), HTTPresponse::MIME::text);
+                public_paths.erase(std::remove(public_paths.begin(), public_paths.end(), url_string), public_paths.end());
+                for (auto &path : public_paths)
+                    public_paths_file << path << '\n';
+
+                return HTTPresponse(200).file_attachment(string("Path is now private"), HTTPresponse::MIME::text);
+            }
+
             return not_found;
         }
         break;

@@ -166,25 +166,33 @@ string web_utils::get_action_and_truncate(string &url, bool check_exists) // ret
     return "";
 }
 
-string web_utils::generate_directory_data(string path)
+string web_utils::generate_directory_data(string path, std::vector<string> &public_paths, bool cur_public)
 {
     string data;
     for (auto &entry : fs::directory_iterator(path))
     {
         string filename = entry.path().filename().string();
+        string permission = "public";
+
+        if (!cur_public && check_path_matches(path + filename, public_paths) == MatchType::none)
+            permission = "private";
+
         if (fs::is_directory(entry))
             filename += "/";
 
         // get_folder_size can be added here to get directory size as well. However, this will make page loading very slow
         // on a low-end device if the directory tree is massive.
-        data += encode_webstring(filename) + ";" + (fs::is_directory(entry) ? "-" : to_string(fs::file_size(entry))) + "\n";
+        data += encode_webstring(filename) + ";" +
+                (fs::is_directory(entry) ? "-" : to_string(fs::file_size(entry))) + ";" +
+                permission + "\n";
     }
     auto stat = fs::space("files/");
-    data += to_string(stat.capacity) + "\n" + to_string(stat.capacity - stat.free);
+    data += to_string(stat.capacity) + "\n" + to_string(stat.capacity - stat.free) + "\n";
+    data += cur_public ? "public" : "private";
     return data;
 }
 
-bool web_utils::check_path_matches(std::string path, std::vector<std::string> match_list)
+web_utils::MatchType web_utils::check_path_matches(std::string path, std::vector<std::string> &match_list)
 {
     get_action_and_truncate(path, false); // TODO: this will no longer be needed when action processing is finally done properly (with query params)
     if (path[path.length() - 1] == '/')
@@ -192,8 +200,13 @@ bool web_utils::check_path_matches(std::string path, std::vector<std::string> ma
 
     for (auto &m : match_list)
     {
-        if (path.rfind(m, 0) == 0 && (m.length() == path.length() || path[m.length()] == '/'))
-            return true;
+        if (path.rfind(m, 0) == 0)
+        {
+            if (m.length() == path.length())
+                return MatchType::exact;
+            if (path[m.length()] == '/')
+                return MatchType::prefix;
+        }
     }
-    return false;
+    return MatchType::none;
 }

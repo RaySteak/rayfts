@@ -8,6 +8,8 @@ if (perfEntries[0].type === "back_forward") {
     location.reload(true);
 }
 
+var overall_permission = "private";
+
 async function downloadZip(id, useEncoding) {
     try {
         _("hidden_frame" + id).remove(); //remove any frame created by previous calls
@@ -176,9 +178,7 @@ async function download_check_zip(id, useEncoding = false) {
     zipCheck(id);
 }
 
-var used, available;
-
-function drawMemoryUsageGraph() {
+function drawMemoryUsageGraph(used, available) {
     // var used = Number(_("used_space").innerHTML);
     // var available = Number(_('free_space').innerHTML);
     // _("free_space").remove();
@@ -285,51 +285,78 @@ function human_readable_size(size) {
     return size.toFixed(2) + units[i];
 }
 
-function buildDirNode(rowNum, href, size, max_name_length = 30) {
+function buildDirNode(rowNum, href, size, is_public, max_name_length = 30) {
     let name = href.split('/')[0];
     let is_directory = href[href.length - 1] == '/';
     let is_video = href.endsWith('.mp4') || href.endsWith('.webm') || href.endsWith('.mkv');
     let display_name = name.length > max_name_length ? name.substring(0, max_name_length) + " ... " : name + ' ';
+    let entry_image = is_directory ? '/images/folder.png' : '/images/file.png';
+    let entry_title = is_directory ? 'Directory' : 'File';
+    let public_image = is_public ? '/images/unlocked-padlock.png' : '/images/blank.png';
+    let public_title_html = is_public ? 'title="This entry is public"' : '';
     let inner_html = `<tr style="background-color:#${rowNum % 2 == 0 ? "808080" : "FFFFFF"}" id=row${rowNum}>
                             <td>
-                                <img src="${is_directory ? '/images/folder.png' : '/images/file.png'}" height="20" width="20" alt="N/A">
+                                <img src="${entry_image}" title="${entry_title}" height="20" width="20" alt="N/A">
+                                <img src="${is_public ? '/images/unlocked-padlock.png' : '/images/blank.png'}" height="20" width="20" alt="N/A" ${public_title_html}>
                             </td>
                             <td>
                                 <a href="${href}" title="${name}">${display_name}</a>` +
-                                (is_directory ? `<button onclick="download_check_zip(${rowNum})"/ type="button" style="background-image: url(\'/images/download.png\')">` : '') +
-                                (is_video ? `<a href="${name + "/~play/"}"><img src="/images/play.png" height="20" width="20" alt="N/A"></a>` : '') +
+                                (is_directory ? `<button onclick="download_check_zip(${rowNum})"/ type="button" style="background-image: url(\'/images/download.png\')">` : ``) +
+                                (is_video ? `<a href="${name + "/~play/"}"><img src="/images/play.png" height="20" width="20" alt="N/A"></a>` : ``) +
                             `</td>
                             <td>${is_directory ? "-" : human_readable_size(size)}</td>
                             <td>
                                 <input type="checkbox" name="${name}">
                             </td>
                         </tr>`;
-    return htmlToNode(inner_html);
+    node = htmlToNode(inner_html);
+    node.is_public = is_public;
+    node.is_directory = is_directory;
+    return node;
 }
 
-var directory_entries_request = $.ajax({
-    url: window.location.pathname + '~entries',
-    success: function(data) {
-        var elements = data.split('\n');
-        available = Number(elements[elements.length - 2]);
-        used = Number(elements[elements.length - 1]);
-        elements.pop(); elements.pop(); // Remove the available and used values
+function refreshDirEntries() {
+    var dir_entries = _("dir_entries");
+    var new_dir_entries = htmlToNode('<tbody id="new_dir_entries"></tbody>');
+    
+    $.ajax({
+        url: window.location.pathname + '~entries',
+        success: function(data) {
+            var elements = data.split('\n');
+
+            overall_permission = elements[elements.length - 1];
+            elements.pop(); // Remove the overall public value
         
-        var entries = [];
-        for (var i = 0; i < elements.length; i++) {
-            element = elements[i].split(';');
-            let href = decodeURIComponent(element[0]);
-            let size = element[1];
-            entries.push({"href": href, "size": size});
-        }
+            var available = Number(elements[elements.length - 2]);
+            var used = Number(elements[elements.length - 1]);
+            elements.pop(); elements.pop(); // Remove the available and used values
 
-        entries.sort((a, b) => a.href.localeCompare(b.href));
+            if (overall_permission === "public")
+                _("curDirPublicText").style.display = "block";
+            
+            var entries = [];
+            for (var i = 0; i < elements.length; i++) {
+                element = elements[i].split(';');
+                let href = decodeURIComponent(element[0]);
+                let size = element[1];
+                let permission = element[2];
+                entries.push({"href": href, "is_public": permission == "public", "size": size});
+            }
 
-        for (var i = 0; i < entries.length; i++) {
-            let new_entry = buildDirNode(i, entries[i].href, entries[i].size);
-            dir_entries.append(new_entry);
+            entries.sort((a, b) => a.href.localeCompare(b.href));
+
+            for (var i = 0; i < entries.length; i++) {
+                let new_entry = buildDirNode(i, entries[i].href, entries[i].size, entries[i].is_public);
+                new_dir_entries.append(new_entry);
+            }
+
+            new_dir_entries.id = "dir_entries";
+            dir_entries.replaceWith(new_dir_entries); 
+            window.onload = () => {drawMemoryUsageGraph(used, available)};
+            initializeCtxMenu();
+
         }
-        window.onload = drawMemoryUsageGraph;
-        initializeCtxMenu();
-    }
-});
+    });
+}
+
+refreshDirEntries();

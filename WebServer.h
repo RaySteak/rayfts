@@ -140,6 +140,13 @@ public:
         nil
     };
 
+    class ConfigFiles
+    {
+    public:
+        static const char *const wol_list;
+        static const char *const public_paths;
+    };
+
     WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest);
     WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest, std::function<int(char *, char *, WebServer *)> zip_folder);
     virtual ~WebServer();

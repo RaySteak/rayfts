@@ -3,6 +3,7 @@ var ctxMenuShort = _("ctxMenuShort");
 var ctxRenameForm = _("ctxRenameForm");
 var currentContextedFile;
 var currentContextedRow;
+var currentIsPublic;
 
 function setMenuWidths(menu) {
     if (menu.firstElementChild == null)
@@ -31,7 +32,6 @@ function initializeCtxMenu() {
         if (!row)
             break;
 
-        console.log(row);
         row.addEventListener("contextmenu", showMenu(ctxMenu, "normal"), false);
     }
 }
@@ -53,6 +53,7 @@ function showMenu(menu, type) {
     return function(event) {
         if (type == "normal") {
             event.currentTarget.lastElementChild.firstElementChild.checked = true;
+
         } else if (type == "short") {
             for (startingElement = event.target; startingElement && startingElement.id.startsWith("row") == false; startingElement = startingElement.parentElement)
                 ;
@@ -60,12 +61,23 @@ function showMenu(menu, type) {
                 return;
         }
         event.preventDefault();
-        currentContextedFile = event.currentTarget.firstChild.nextSibling.firstChild.title;
+        currentContextedFile = event.currentTarget.firstElementChild.nextElementSibling.firstElementChild.title;
         currentContextedRow = event.currentTarget;
         menu.style.display = "block";
         menu.style.visibility = "visible";
         menu.style.left = (event.pageX - 10) + "px";
         menu.style.top = (event.pageY - 10) + "px";
+
+        if (overall_permission == "public") {
+            _("ctxMakePublic").style.display = "none";
+            _("ctxMakePrivate").style.display = "none";            
+        } else if (event.currentTarget.is_public) {
+            _("ctxMakePublic").style.display = "none";
+            _("ctxMakePrivate").style.display = "block";
+        } else {
+            _("ctxMakePublic").style.display = "block";
+            _("ctxMakePrivate").style.display = "none";
+        }
     }
 }
 
@@ -98,6 +110,10 @@ document.addEventListener("click", function(event) {
     ctxMenu.style.display = "";
     ctxMenu.style.left = "";
     ctxMenu.style.top = "";
+
+    ctxMenuShort.style.display = "";
+    ctxMenuShort.style.left = "";
+    ctxMenuShort.style.top = "";
 }, false);
 
 // Fast download
@@ -146,7 +162,7 @@ pasteEvent = function(event) {
         url: window.location.pathname + "~paste",
         type: "POST",
         success: function(result) {
-            location.reload();
+            refreshDirEntries();
         }
     });
 }
@@ -154,6 +170,23 @@ pasteEvent = function(event) {
 
 _("ctxPaste").addEventListener("click", pasteEvent, false);
 _("ctxPasteShort").addEventListener("click", pasteEvent, false);
+
+// Set permission
+function setPermission(type) {
+    return function(event) {
+        $.ajax({
+            url: window.location.pathname + currentContextedFile + (currentContextedRow.is_directory ? '/' : ''),
+            type: "PATCH",
+            data: `permission=${type}`,
+            success: function(result) {
+                refreshDirEntries();
+            }
+        });
+    }
+} 
+
+_("ctxMakePublic").addEventListener("click", setPermission('public'), false);
+_("ctxMakePrivate").addEventListener("click", setPermission('private'), false);
 
 // Old test renaming function
 function renameFile(filename) {

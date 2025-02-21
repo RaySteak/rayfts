@@ -28,5 +28,6 @@ An example is listed in the Makefile, which you can try with `make run_server`, 
 - Directory interface auto-refreshing to always display up-to-date files by using either polling or finding an easy way to implement websockets in C++, which would also mean replacing all other polling instances with websocket (e.g. Device state in the IoT page).
 - Move 'delete' function into context menu.
 - Displaying of extra information when pasting fails.
+- Cleanup of endpoint handling using unique callback for each *Method*, *Path*, and (maybe) *Action* tuple. Also impllies changing the "action" format to the streamlined URL params format. 
 - File copy (easy to implement, but probably will not be implemented as it's not needed).
 - gzip encoded transfer for file uploading.
