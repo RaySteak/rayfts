@@ -258,7 +258,8 @@ var directory_entries_request = $.ajax({
         var elements = data.split('\n');
         available = Number(elements[elements.length - 2]);
         used = Number(elements[elements.length - 1]);
-        elements.pop(); elements.pop(); // Remove the available and used values
+        // Remove the available and used values and the identifier which says if the cuurrent directory is public or private
+        elements.pop(); elements.pop(); elements.pop()
         
         var entries = [];
         for (var i = 0; i < elements.length; i++) {
