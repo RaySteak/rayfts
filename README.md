@@ -22,6 +22,7 @@ The server has 4 parameters: port, username, password salt, and SHA3-512 digest 
 An example is listed in the Makefile, which you can try with `make run_server`, which runs the server on port 42069, with credentials "a" and "a" using a dummy salt. You can also use `make run_server_debug` which doesn't require a password. Just make sure to `make clean` if you want to use `make run_server` after running `make run_server_debug` and vice versa.
 
 ## Future improvements (in order of importance):
+- Fix that bug of the Invincible file that might contain a weird character which crashes the server and then upon reset it gives an exception when displaying the folder contents.
 - Fix right click context menu not working on empty directories.
 - Fix used storage chart not always displaying.
 - Look into setting up chroot jail when running server.
