@@ -1,5 +1,6 @@
 #include "WebServer.h"
 #include "web_utils.h"
+#include "HTTPUtils.h"
 #include "wake_on_lan.h"
 #include "remote_shutdown/remote_shutdown.h"
 #include "arduino/arduino_constants.h"
@@ -158,66 +159,6 @@ int WebServer::recv_exactly(int fd, char *buffer, size_t count) // TODO: find a 
     return nr;
 }
 
-WebServer::Method get_method(char *data)
-{
-    if (!startcmp(data, "GET"))
-        return WebServer::Method::GET;
-    if (!startcmp(data, "HEAD"))
-        return WebServer::Method::HEAD;
-    if (!startcmp(data, "POST"))
-        return WebServer::Method::POST;
-    if (!startcmp(data, "PUT"))
-        return WebServer::Method::PUT;
-    if (!startcmp(data, "DELETE"))
-        return WebServer::Method::DELETE;
-    if (!startcmp(data, "OPTIONS"))
-        return WebServer::Method::OPTIONS;
-    if (!startcmp(data, "PATCH"))
-        return WebServer::Method::PATCH;
-    return WebServer::Method::nil;
-}
-
-int WebServer::recv_http_header(int fd, char *buffer, int max, int &header_size)
-{
-    int nr = 0;
-    char *terminator = NULL;
-
-    while (nr < max)
-    {
-        pollfd pfd{.fd = fd, .events = POLLIN, .revents = 0};
-        ret = poll(&pfd, 1, timeout_milli);
-        DIE(ret < 0, "poll");
-        if (!(pfd.revents & POLLIN))
-            return 0;
-        int n = recv(fd, buffer + nr, max - nr, 0);
-        if (n <= 0)
-            return n;
-        buffer[nr + n] = 0;
-        if (nr == 0)
-        {
-            if (get_method(buffer) == Method::nil)
-                return 0;
-            char *http = strstr(buffer, "HTTP/1.1");
-            if (!http)
-                return 0;
-            char *first_crlf = strstr(buffer, CRLF);
-            if (!first_crlf || first_crlf - http < 0)
-                return 0;
-            char *url = strchr(buffer, '/');
-            if (!url || url - http > 0)
-                return 0;
-        }
-        nr += n;
-        if ((terminator = strstr(buffer, CRLFx2)))
-            break;
-    }
-
-    if (!terminator)
-        return 0;
-    header_size = terminator - buffer + strlen(CRLFx2);
-    return nr;
-}
-
 void WebServer::close_connection(int fd, bool erase_from_sets)
 {
     auto found_it = fd_to_file_futures.find(fd);
@@ -256,6 +197,7 @@ void WebServer::close_connection(int fd, bool erase_from_sets)
         unreceived_files.erase(fd);
     }
 
+    requests.erase(fd);
     ret = close(fd);
     FD_CLR(fd, &read_fds);
 
@@ -269,60 +211,59 @@ void WebServer::close_connection(int fd, bool erase_from_sets)
     }
 }
 
-int WebServer::process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, uint64_t &total)
-{
-    size_t nr = read_size;
-    data = NULL;
-    char *content_length = strstr(buffer, "Content-Length: ");
+// int WebServer::process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, uint64_t &total)
+// {
+//     size_t nr = read_size;
+//     data = NULL;
+//     char *content_length = strstr(buffer, "Content-Length: ");
 
-    if (content_length)
-    {
-        content_length += strlen("Content-Length: ");
-        // TODO: check big content lengths
-        int digits = 0;
-        while (content_length[digits] >= '0' && content_length[digits] <= '9')
-            digits++;
-        content_length[digits] = 0;
-        uint64_t length = strtoull(content_length, NULL, 0);
-        content_length[digits] = '\r';
-        uint64_t content_read = read_size - header_size;
-        uint64_t remaining = length - content_read;
-        total = remaining + read_size;
-        if (total > max_alloc)
-            data = new char[max_alloc + 1];
-        else
-            data = new char[total + 1];
-        memcpy(data, buffer, read_size);
+//     if (content_length)
+//     {
+//         content_length += strlen("Content-Length: ");
+//         int digits = 0;
+//         while (content_length[digits] >= '0' && content_length[digits] <= '9')
+//             digits++;
+//         content_length[digits] = 0;
+//         uint64_t length = strtoull(content_length, NULL, 0);
+//         content_length[digits] = '\r';
+//         uint64_t content_read = read_size - header_size;
+//         uint64_t remaining = length - content_read;
+//         total = remaining + read_size;
+//         if (total > max_alloc)
+//             data = new char[max_alloc + 1];
+//         else
+//             data = new char[total + 1];
+//         memcpy(data, buffer, read_size);
 
-        while (remaining && max_alloc - nr > 0)
-        {
-            pollfd pfd{.fd = fd, .events = POLLIN, .revents = 0};
-            ret = poll(&pfd, 1, timeout_milli);
-            DIE(ret < 0, "poll");
-            if (!(pfd.revents & POLLIN))
-            {
-                delete data;
-                return 0;
-            }
-            int n = recv(fd, data + nr, total > max_alloc ? max_alloc - nr : remaining, 0);
-            if (n <= 0)
-            {
-                delete data;
-                return n;
-            }
-            nr += n;
-            remaining -= n;
-        }
-    }
-    else
-    {
-        data = new char[header_size + 1];
-        total = header_size;
-        memcpy(data, buffer, header_size);
-    }
-    data[nr] = 0;
-    return nr;
-}
+//         while (remaining && max_alloc - nr > 0)
+//         {
+//             pollfd pfd{.fd = fd, .events = POLLIN, .revents = 0};
+//             ret = poll(&pfd, 1, timeout_milli);
+//             DIE(ret < 0, "poll");
+//             if (!(pfd.revents & POLLIN))
+//             {
+//                 delete data;
+//                 return 0;
+//             }
+//             int n = recv(fd, data + nr, total > max_alloc ? max_alloc - nr : remaining, 0);
+//             if (n <= 0)
+//             {
+//                 delete data;
+//                 return n;
+//             }
+//             nr += n;
+//             remaining -= n;
+//         }
+//     }
+//     else
+//     {
+//         data = new char[header_size + 1];
+//         total = header_size;
+//         memcpy(data, buffer, header_size);
+//     }
+//     data[nr] = 0;
+//     return nr;
+// }
 
 void WebServer::process_cookies()
 {
@@ -397,15 +338,21 @@ HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folde
     return downloading_it->second.second;
 }
 
-HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t read_size, uint64_t total_size, int fd)
+HTTPresponse WebServer::process_http_request(HTTPRequest &request)
 {
+    char *data = request.get_data();
+    int fd = request.get_fd();
+    size_t header_size = request.header_size;
+    size_t read_size = request.read_size;
+    uint64_t total_size = request.total_size;
+
     char *content = data + header_size;
     auto not_implemented = HTTPresponse(501).file_attachment("html/not_implemented.html", HTTPresponse::MIME::html);
     auto not_found = HTTPresponse(404).file_attachment("html/not_found.html", HTTPresponse::MIME::html);
     const string redirect = "Redirecting...";
     SHA3 sha3(SHA3::Bits::Bits512);
 
-    Method method = get_method(data);
+    HTTPRequest::Method method = request.get_method();
     char *url = strchr(data, '/');
     char *saved;
     strtok_r(url, " \r\n", &saved);
@@ -435,9 +382,9 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
 
         switch (method)
         {
-        case Method::GET:
+        case HTTPRequest::Method::GET:
             return HTTPresponse(200).file_attachment("html/login.html", HTTPresponse::MIME::html);
-        case Method::POST:
+        case HTTPRequest::Method::POST:
         {
             auto fields = get_content_fields(content, "=", "&");
             // TODO: implement remember
@@ -445,6 +392,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             username = fields["user"];
             password = fields["psw"];
             remember = fields["remember"];
+
             if (username == user && sha3(salt + password) == salt_pass_digest)
             {
                 SessionCookie *cookie = new SessionCookie();
@@ -461,10 +409,10 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
     {
         switch (method)
         {
-        case Method::OPTIONS:
+        case HTTPRequest::Method::OPTIONS:
             return HTTPresponse(200).access_control("*").file_attachment(string("Te las boss sa te uiti numa"), HTTPresponse::MIME::text);
-        case Method::GET:
-        case Method::POST:
+        case HTTPRequest::Method::GET:
+        case HTTPRequest::Method::POST:
         {
             fs::directory_entry check(url + 1);
             if (!fs::exists(check) || fs::is_directory(check))
@@ -536,7 +484,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
 
         switch (method)
         {
-        case Method::GET:
+        case HTTPRequest::Method::GET:
         {
             string action;
             if (!strcmp(url, "/"))
@@ -650,7 +598,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                 .content_disposition(HTTPresponse::DISP::Attachment, filename)
                 .file_attachment(url_string.c_str(), HTTPresponse::MIME::octet_stream);
         }
-        case Method::POST:
+        case HTTPRequest::Method::POST:
         {
             if (limited_access) // No POST allowed for limited access
                 return not_implemented;
@@ -742,6 +690,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
                                             size_t file_header_size = file_content - content + boundary_val.length() + strlen(CRLF);
                                             // clear fd so that we treat file reception separately (NOTE: this doesn't close the connection)
                                             remove_from_read(fd);
+                                            // TODO: move this to HTTPRequest
                                             unreceived_files.insert(
                                                 {fd, file_receive_data(url_string + filename, boundary_val, file_content, read_size - file_header_size - header_size, total_size - read_size)});
                                             return HTTPresponse(HTTPresponse::PHONY);
@@ -763,7 +712,7 @@ HTTPresponse WebServer::process_http_request(char *data, int header_size, size_t
             // respond with redirect (Post/Redirect/Get pattern) to avoid form resubmission
             return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
         }
-        case Method::PATCH:
+        case HTTPRequest::Method::PATCH:
         {
             auto fields = get_content_fields(content, "=", "&");
             // Control page actions
@@ -1013,33 +962,32 @@ void WebServer::run()
                         DIE(newsockfd < 0, "accept");
                         FD_SET(newsockfd, &read_fds);
                         fdmax = newsockfd > fdmax ? newsockfd : fdmax;
+                        requests.insert({newsockfd, HTTPRequest(newsockfd, max_alloc)});
                         // ret = fcntl(newsockfd, F_SETFL, fcntl(newsockfd, F_GETFL, 0) | O_NONBLOCK);
                         // DIE(ret < 0, "fcntl");
                     }
                     else
                     {
-                        int header_size;
-                        n = recv_http_header(i, buffer, BUFLEN, header_size);
-                        if (n <= 0) // connection closed or incorrect request or timeout
+                        HTTPRequest &request = requests.find(i)->second;
+                        HTTPRequest::ProcessStatus status = request.process();
+
+                        if (status == HTTPRequest::ProcessStatus::error) // connection closed or incorrect request or a TCP error
                         {
                             close_connection(i, true);
                             continue;
                         }
 
-                        char *data;
-                        uint64_t total;
-                        n = process_http_header(i, buffer, n, header_size, data, total);
-                        DIE(n < 0, "process");
-                        if (n == 0)
-                        {
-                            close_connection(i, true);
+                        if (status == HTTPRequest::ProcessStatus::incomplete)
                             continue;
-                        }
 
-                        std::cout << data << '\n';
-                        std::cout << "Pregatim raspunsul...\n";
-                        HTTPresponse response = process_http_request(data, header_size, n, total, i);
-                        std::cout << "Trimitem raspunsul\n";
+                        // status is complete here
+                        // TODO: replace with actual logging
+                        std::cout << request.get_data() << '\n';
+
+                        std::cout << "Preparing response...\n";
+                        HTTPresponse response = process_http_request(request);
+                        request.reset(); // Reset for next request on same connection
+                        std::cout << "Sending response...\n";
                         // std::cout << response;
                         if (response.is_phony())
                             continue;
@@ -1049,8 +997,7 @@ void WebServer::run()
                             if (response.is_multifragment_transfer())
                                 unsent_files.insert({i, response.begin_file_transfer()});
                         }
-                        std::cout << "Am trimis raspunsul\n";
-                        delete[] data;
+                        std::cout << "Response has been sent\n";
                     }
                 }
             }
