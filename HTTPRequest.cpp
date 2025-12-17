@@ -61,12 +61,9 @@ HTTPRequest::Method HTTPRequest::get_method()
     return HTTPRequest::Method::nil;
 }
 
-// int fd, char *buffer, int max, int &header_size
 HTTPRequest::ProcessStatus HTTPRequest::receive_header()
 {
-    static int nr = 0;
-
-    int n = recv(fd, buffer + nr, buffer_size - nr, 0);
+    int n = recv(fd, buffer + read_size, buffer_size - read_size, 0);
     if (n <= 0)
         return ProcessStatus::error;
     buffer[read_size + n] = 0;
@@ -154,7 +151,7 @@ HTTPRequest::ProcessStatus HTTPRequest::process(void)
         case State::receive_header:
             last_status = receive_header();
             if (last_status != ProcessStatus::complete)
-                return ProcessStatus::error;
+                return last_status;
 
             cur_state = State::process_header;
             break;
@@ -167,6 +164,7 @@ HTTPRequest::ProcessStatus HTTPRequest::process(void)
             cur_state = State::done;
             break;
         case State::done:
+            // Try to process/receive after done which is not allowed
             return ProcessStatus::error;
         }
     } while (cur_state != State::done);
