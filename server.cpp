@@ -1,5 +1,6 @@
 #include "WebServer.h"
 #include <new>
+#include "execinfo.h"
 
 void usage(const char *exec)
 {

@@ -1,7 +1,9 @@
 #include "HTTPresponse.h"
+
 #include <iostream>
 #include <string.h>
 #include <sstream>
+#include "HTTPUtils.h"
 
 HTTPresponse::HTTPresponse(int code)
 {

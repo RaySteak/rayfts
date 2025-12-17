@@ -7,9 +7,6 @@
 #include <zlib.h>
 #include "Cookie.h"
 
-#define CRLF "\r\n"
-#define CRLFx2 "\r\n\r\n"
-
 using std::ostream;
 using std::string;
 using std::to_string;

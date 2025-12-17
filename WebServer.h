@@ -1,6 +1,7 @@
 #pragma once
 #include "common_utils.h"
 #include "HTTPresponse.h"
+#include "HTTPRequest.h"
 #include "SessionCookie.h"
 #include "lock_writable_unordered_map.h"
 #include "ping_device.h"
@@ -79,7 +80,10 @@ private:
     fd_set tmp_fds;  // temporary set
     int fdmax;       // max val of read_fds
 
-    unordered_map<string, Cookie *> cookies;
+    unordered_map<int, HTTPRequest> requests;
+
+    unordered_map<string, Cookie *>
+        cookies;
     // tuple members are as follows: connections awaiting the file, future of file, response, temporary filename, size of final file (approximate for zips)
     unordered_map<string, std::tuple<unordered_set<int>, std::future<int>, HTTPresponse, string, uint64_t>> file_futures;
     unordered_map<string, std::pair<int, HTTPresponse>> downloading_futures;
@@ -101,14 +105,14 @@ private:
     inline void init_server_params(int port, const char *user, const char *salt, const char *salt_pass_digest);
     int send_exactly(int fd, const char *buffer, size_t count);
     int recv_exactly(int fd, char *buffer, size_t count);
-    int recv_http_header(int fd, char *buffer, int max, int &header_size);
+    // int recv_http_header(int fd, char *buffer, int max, int &header_size);
     void close_connection(int fd, bool erase_from_sets);
     int process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, uint64_t &total);
     void process_cookies();
     void remove_from_read(int fd);
     void add_to_read(int fd);
     HTTPresponse queue_file_future(int fd, string temp_path, string folder_path, string folder_name, HTTPresponse::ENCODING encoding);
-    HTTPresponse process_http_request(char *data, int header_size, size_t read_size, uint64_t total_size, int fd);
+    HTTPresponse process_http_request(HTTPRequest &request);
 
     // int zip_folder(char *destination, char *path)
     // zips folder located at path/name and places it in destination
@@ -127,19 +131,6 @@ private:
 #endif
 
 public:
-    enum class Method
-    {
-        GET,
-        HEAD,
-        POST,
-        PUT,
-        DELETE,
-        CONNECT,
-        OPTIONS,
-        PATCH,
-        nil
-    };
-
     class ConfigFiles
     {
     public:
