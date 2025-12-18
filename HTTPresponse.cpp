@@ -39,6 +39,9 @@ HTTPresponse::HTTPresponse(int code)
     case 422:
         response += "Unprocessable Entity";
         break;
+    case 429:
+        response += "Too Many Requests";
+        break;
     case 501:
         response += "Not Implemented";
         break;

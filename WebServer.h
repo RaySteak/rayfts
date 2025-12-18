@@ -2,6 +2,7 @@
 #include "common_utils.h"
 #include "HTTPresponse.h"
 #include "HTTPRequest.h"
+#include "RateLimiter.h"
 #include "SessionCookie.h"
 #include "lock_writable_unordered_map.h"
 #include "ping_device.h"
@@ -80,7 +81,9 @@ private:
     fd_set tmp_fds;  // temporary set
     int fdmax;       // max val of read_fds
 
-    unordered_map<int, HTTPRequest> requests;
+    // map of fd to client IP and HTTPRequest
+    unordered_map<int, std::pair<uint32_t, HTTPRequest>> connections;
+    RateLimiter rate_limiter;
 
     unordered_map<string, Cookie *>
         cookies;
@@ -138,8 +141,8 @@ public:
         static const char *const public_paths;
     };
 
-    WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest);
-    WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest, std::function<int(char *, char *, WebServer *)> zip_folder);
+    WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest, RateLimiter rate_limiter = RateLimiter());
+    WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest, std::function<int(char *, char *, WebServer *)> zip_folder, RateLimiter rate_limiter = RateLimiter());
     virtual ~WebServer();
     void run();
 };

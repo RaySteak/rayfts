@@ -63,7 +63,8 @@ public:
     ProcessStatus process(void);
 
     char *get_data();
-
-    Method get_method();
     int get_fd();
+    Method get_method();
+
+    bool is_new();
 };

@@ -101,11 +101,16 @@ void WebServer::init_server_params(int port, const char *user, const char *salt,
         public_paths.push_back(line);
 }
 
-WebServer::WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest)
+WebServer::WebServer(
+    int port,
+    const char *user,
+    const char *salt,
+    const char *salt_pass_digest,
+    RateLimiter rate_limiter)
 {
     init_server_params(port, user, salt, salt_pass_digest);
+    this->rate_limiter = rate_limiter;
 
-    // default zip_folder function
     zip_folder = [](char *destination, char *path, WebServer *server)
     {
         pid_t pid;
@@ -124,10 +129,16 @@ WebServer::WebServer(int port, const char *user, const char *salt, const char *s
     };
 }
 
-WebServer::WebServer(int port, const char *user, const char *salt, const char *salt_pass_digest, std::function<int(char *destination, char *user, WebServer *)> zip_folder)
+WebServer::WebServer(
+    int port,
+    const char *user,
+    const char *salt,
+    const char *salt_pass_digest,
+    std::function<int(char *, char *, WebServer *)> zip_folder,
+    RateLimiter rate_limiter)
 {
     init_server_params(port, user, salt, salt_pass_digest);
-
+    this->rate_limiter = rate_limiter;
     this->zip_folder = zip_folder;
 }
 
@@ -197,7 +208,7 @@ void WebServer::close_connection(int fd, bool erase_from_sets)
         unreceived_files.erase(fd);
     }
 
-    requests.erase(fd);
+    connections.erase(fd);
     ret = close(fd);
     FD_CLR(fd, &read_fds);
 
@@ -210,60 +221,6 @@ void WebServer::close_connection(int fd, bool erase_from_sets)
         }
     }
 }
-
-// int WebServer::process_http_header(int fd, char *buffer, int read_size, int header_size, char *&data, uint64_t &total)
-// {
-//     size_t nr = read_size;
-//     data = NULL;
-//     char *content_length = strstr(buffer, "Content-Length: ");
-
-//     if (content_length)
-//     {
-//         content_length += strlen("Content-Length: ");
-//         int digits = 0;
-//         while (content_length[digits] >= '0' && content_length[digits] <= '9')
-//             digits++;
-//         content_length[digits] = 0;
-//         uint64_t length = strtoull(content_length, NULL, 0);
-//         content_length[digits] = '\r';
-//         uint64_t content_read = read_size - header_size;
-//         uint64_t remaining = length - content_read;
-//         total = remaining + read_size;
-//         if (total > max_alloc)
-//             data = new char[max_alloc + 1];
-//         else
-//             data = new char[total + 1];
-//         memcpy(data, buffer, read_size);
-
-//         while (remaining && max_alloc - nr > 0)
-//         {
-//             pollfd pfd{.fd = fd, .events = POLLIN, .revents = 0};
-//             ret = poll(&pfd, 1, timeout_milli);
-//             DIE(ret < 0, "poll");
-//             if (!(pfd.revents & POLLIN))
-//             {
-//                 delete data;
-//                 return 0;
-//             }
-//             int n = recv(fd, data + nr, total > max_alloc ? max_alloc - nr : remaining, 0);
-//             if (n <= 0)
-//             {
-//                 delete data;
-//                 return n;
-//             }
-//             nr += n;
-//             remaining -= n;
-//         }
-//     }
-//     else
-//     {
-//         data = new char[header_size + 1];
-//         total = header_size;
-//         memcpy(data, buffer, header_size);
-//     }
-//     data[nr] = 0;
-//     return nr;
-// }
 
 void WebServer::process_cookies()
 {
@@ -962,13 +919,27 @@ void WebServer::run()
                         DIE(newsockfd < 0, "accept");
                         FD_SET(newsockfd, &read_fds);
                         fdmax = newsockfd > fdmax ? newsockfd : fdmax;
-                        requests.insert({newsockfd, HTTPRequest(newsockfd, max_alloc)});
+                        connections.insert({newsockfd, std::make_pair(ntohl(cli_addr.sin_addr.s_addr), HTTPRequest(newsockfd, max_alloc))});
                         // ret = fcntl(newsockfd, F_SETFL, fcntl(newsockfd, F_GETFL, 0) | O_NONBLOCK);
                         // DIE(ret < 0, "fcntl");
                     }
                     else
                     {
-                        HTTPRequest &request = requests.find(i)->second;
+                        auto &connection = connections.find(i)->second;
+                        uint32_t ip = connection.first;
+                        HTTPRequest &request = connection.second;
+
+                        // check rate limiter for new requests
+                        if (request.is_new() && !rate_limiter.take_token(ip))
+                        {
+                            HTTPresponse rate_limited_response = HTTPresponse(429).file_attachment(string("Try again later"), HTTPresponse::MIME::text);
+                            send_exactly(i, rate_limited_response.to_c_str(), rate_limited_response.size());
+                            // easier to close connection here, otherwise we would need to
+                            // read the data from the socket just to discard it
+                            close_connection(i, true);
+                            continue;
+                        }
+
                         HTTPRequest::ProcessStatus status = request.process();
 
                         if (status == HTTPRequest::ProcessStatus::error) // connection closed or incorrect request or a TCP error

@@ -181,3 +181,8 @@ int HTTPRequest::get_fd()
 {
     return fd;
 }
+
+bool HTTPRequest::is_new()
+{
+    return read_size == 0;
+}
