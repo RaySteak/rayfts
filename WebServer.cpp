@@ -205,12 +205,12 @@ void WebServer::close_connection(int fd, bool erase_from_sets)
             delete found_it->second;
             unsent_files.erase(fd);
         }
-        unreceived_files.erase(fd);
     }
 
     connections.erase(fd);
     ret = close(fd);
     FD_CLR(fd, &read_fds);
+    FD_CLR(fd, &tmp_fds);
 
     for (int i = fdmax; i > 0; i--)
     {
@@ -646,10 +646,13 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                                                 return HTTPresponse(422).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
                                             size_t file_header_size = file_content - content + boundary_val.length() + strlen(CRLF);
                                             // clear fd so that we treat file reception separately (NOTE: this doesn't close the connection)
-                                            remove_from_read(fd);
+                                            // remove_from_read(fd);
                                             // TODO: move this to HTTPRequest
-                                            unreceived_files.insert(
-                                                {fd, file_receive_data(url_string + filename, boundary_val, file_content, read_size - file_header_size - header_size, total_size - read_size)});
+                                            HTTPRequest::ProcessStatus status = request.start_file_reception(url_string + filename, boundary_val, file_content, read_size - file_header_size - header_size, total_size - read_size);
+                                            if (status == HTTPRequest::ProcessStatus::error)
+                                                return HTTPresponse(500).end_header();
+                                            if (status == HTTPRequest::ProcessStatus::complete)
+                                                return HTTPresponse(200).file_attachment(string("success"), HTTPresponse::MIME::text);
                                             return HTTPresponse(HTTPresponse::PHONY);
                                         }
                                     }
@@ -757,7 +760,7 @@ void WebServer::run()
         // std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
         tmp_fds = read_fds;
         int available_requests;
-        if (unsent_files.size() == 0 && unreceived_files.size() == 0 && file_futures.size() == 0)
+        if (unsent_files.size() == 0 && file_futures.size() == 0)
         {
             available_requests = select(fdmax + 1, &tmp_fds, NULL, NULL, NULL);
         }
@@ -846,52 +849,6 @@ void WebServer::run()
                 }
             }
         }
-        // receive files
-        for (auto map_iterator = unreceived_files.begin(); map_iterator != unreceived_files.end();)
-        {
-            auto &f = map_iterator->second;
-            // TODO: build mechanism to check cancel of receive and also timeout
-            f.file->write(f.data[f.current_buffer], f.last_recv);
-            if (!f.remaining)
-            {
-                add_to_read(map_iterator->first);
-                char *current_buffer = f.data[f.current_buffer];
-                char *prev_buffer = f.get_next_buffer();
-                uint64_t size = f.file->tellp(), bs = f.boundary.size();
-                f.file->close();
-                char temp_buffer[2 * max_alloc];
-                memcpy(temp_buffer + (max_alloc - f.prev_recv), prev_buffer, f.prev_recv);
-                memcpy(temp_buffer + max_alloc, current_buffer, f.last_recv);
-                size_t offset = bs + strlen("--") + strlen(CRLF);
-                if (strncmp(temp_buffer + max_alloc + f.last_recv - offset, f.boundary.c_str(), bs))
-                {
-                    fs::remove_all(f.filename);
-                }
-                else
-                {
-                    fs::resize_file(f.filename, size - offset - strlen("--") - strlen(CRLF));
-                    // TODO: return upload time here maybe and process it in ajax
-                    HTTPresponse confirmation = HTTPresponse(200).file_attachment(string("success"), HTTPresponse::MIME::text);
-                    send_exactly(map_iterator->first, confirmation.to_c_str(), confirmation.size());
-                }
-                map_iterator = unreceived_files.erase(map_iterator);
-                continue;
-            }
-
-            n = recv_exactly(map_iterator->first, f.get_next_buffer(), f.remaining > max_alloc ? max_alloc : f.remaining); // TODO: used here, should use something else (see func def)
-            if (n <= 0)
-            {
-                close_connection(map_iterator->first, false);
-                fs::remove_all(f.filename);
-                map_iterator = unreceived_files.erase(map_iterator);
-                continue;
-            }
-
-            f.prev_recv = f.last_recv;
-            f.last_recv = n;
-            f.remaining -= n;
-            map_iterator++;
-        }
 
         if (available_requests != 0)
         {
@@ -919,18 +876,19 @@ void WebServer::run()
                         DIE(newsockfd < 0, "accept");
                         FD_SET(newsockfd, &read_fds);
                         fdmax = newsockfd > fdmax ? newsockfd : fdmax;
-                        connections.insert({newsockfd, std::make_pair(ntohl(cli_addr.sin_addr.s_addr), HTTPRequest(newsockfd, max_alloc))});
+                        string client_addr = inet_ntop(AF_INET, &cli_addr.sin_addr, buffer, sizeof(buffer));
+                        connections.insert({newsockfd, HTTPRequest(newsockfd, max_alloc, client_addr)});
                         // ret = fcntl(newsockfd, F_SETFL, fcntl(newsockfd, F_GETFL, 0) | O_NONBLOCK);
                         // DIE(ret < 0, "fcntl");
                     }
                     else
                     {
-                        auto &connection = connections.find(i)->second;
-                        uint32_t ip = connection.first;
-                        HTTPRequest &request = connection.second;
+                        HTTPRequest &request = connections.find(i)->second;
+
+                        std::cout << "Receiving request from IP " << request.get_client_addr() << "...\n";
 
                         // check rate limiter for new requests
-                        if (request.is_new() && !rate_limiter.take_token(ip))
+                        if (request.is_new() && !rate_limiter.take_token(request.get_client_addr()))
                         {
                             HTTPresponse rate_limited_response = HTTPresponse(429).file_attachment(string("Try again later"), HTTPresponse::MIME::text);
                             send_exactly(i, rate_limited_response.to_c_str(), rate_limited_response.size());
@@ -944,7 +902,7 @@ void WebServer::run()
 
                         if (status == HTTPRequest::ProcessStatus::error) // connection closed or incorrect request or a TCP error
                         {
-                            close_connection(i, true);
+                            close_connection(i, !request.is_receiving_file());
                             continue;
                         }
 
@@ -952,16 +910,24 @@ void WebServer::run()
                             continue;
 
                         // status is complete here
+                        if (request.is_receiving_file())
+                        {
+                            // TODO: return upload time here maybe and process it in ajax
+                            request.reset(); // Reset for next request on same connection
+                            auto response = HTTPresponse(200).file_attachment(string("success"), HTTPresponse::MIME::text);
+                            send_exactly(i, response.to_c_str(), response.size());
+                            continue;
+                        }
+
                         // TODO: replace with actual logging
                         std::cout << request.get_data() << '\n';
 
                         std::cout << "Preparing response...\n";
                         HTTPresponse response = process_http_request(request);
-                        request.reset(); // Reset for next request on same connection
                         std::cout << "Sending response...\n";
-                        // std::cout << response;
                         if (response.is_phony())
                             continue;
+                        request.reset(); // Reset for next request on same connection
                         if (!response.is_promise_transfer())
                         {
                             send_exactly(i, response.to_c_str(), response.size());

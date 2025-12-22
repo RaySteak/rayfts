@@ -19,57 +19,6 @@ using std::vector;
 class WebServer
 {
 private:
-    struct file_receive_data
-    {
-        string filename, boundary;
-        std::ofstream *file = NULL;
-        char *data[2] = {NULL, NULL};
-        uint64_t remaining;
-        size_t last_recv, prev_recv = 0;
-        int current_buffer = 0;
-        file_receive_data(string filename, string boundary, char *read_data, size_t read_size, uint64_t remaining)
-            : filename(filename), boundary(boundary), remaining(remaining)
-        {
-            file = new std::ofstream(filename, std::ios::binary);
-            data[0] = new char[WebServer::max_alloc];
-            data[1] = new char[WebServer::max_alloc];
-            memcpy(data[0], read_data, read_size);
-            last_recv = read_size;
-        }
-        file_receive_data(file_receive_data &&f)
-        {
-            this->file = f.file;
-            f.file = NULL;
-            this->filename = f.filename;
-            this->boundary = f.boundary;
-            f.filename = "";
-            this->data[0] = f.data[0];
-            this->data[1] = f.data[1];
-            f.data[0] = NULL;
-            f.data[1] = NULL;
-            this->remaining = f.remaining;
-            this->last_recv = f.last_recv;
-            this->prev_recv = f.prev_recv;
-            this->current_buffer = f.current_buffer;
-        }
-        file_receive_data(const file_receive_data &f) = default;
-        ~file_receive_data()
-        {
-            if (file)
-            {
-                delete file;
-                delete data[0];
-                delete data[1];
-            }
-        }
-        char *get_next_buffer()
-        {
-            current_buffer = (current_buffer + 1) & 0b1;
-            char *toret = data[current_buffer];
-            return toret;
-        }
-    };
-
     string user, salt, salt_pass_digest;
     int listenfd, newsockfd, port, udpfd;
     char buffer[BUFLEN + 1];
@@ -81,8 +30,8 @@ private:
     fd_set tmp_fds;  // temporary set
     int fdmax;       // max val of read_fds
 
-    // map of fd to client IP and HTTPRequest
-    unordered_map<int, std::pair<uint32_t, HTTPRequest>> connections;
+    // map of fd to client address and HTTPRequest
+    unordered_map<int, HTTPRequest> connections;
     RateLimiter rate_limiter;
 
     unordered_map<string, Cookie *>
@@ -95,7 +44,6 @@ private:
     lock_writable_unordered_map<string, pid_t> path_to_pid;
 
     unordered_map<int, HTTPresponse::filesegment_iterator *> unsent_files;
-    unordered_map<int, file_receive_data> unreceived_files;
 
     // Remembering cut files for each session cookie for file moving
     unordered_map<string, std::pair<string, unordered_set<string>>> session_to_cut_files;

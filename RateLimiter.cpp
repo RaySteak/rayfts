@@ -29,16 +29,15 @@ void RateLimiter::cleanup_old_clients(void)
     }
 }
 
-bool RateLimiter::take_token(uint32_t client_ip)
+bool RateLimiter::take_token(std::string client_addr)
 {
     cleanup_old_clients();
-    auto it = client_tokens.find(client_ip);
+    auto it = client_tokens.find(client_addr);
 
     if (it == client_tokens.end())
     {
         auto now = std::chrono::steady_clock::now();
-        client_tokens.insert({client_ip, {max_requests - 1, now}});
-        auto it2 = client_tokens.find(client_ip);
+        client_tokens.insert({client_addr, {max_requests - 1, now}});
         return true;
     }
 

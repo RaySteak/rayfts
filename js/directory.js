@@ -273,6 +273,7 @@ function htmlToNode(html) {
 }
 
 function human_readable_size(size) {
+    size = Number(size);
     var decimal_threshold = 3;
     var units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
     var i = 0;
