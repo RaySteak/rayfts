@@ -98,33 +98,35 @@ string web_utils::encode_webstring(string name)
     return encoded;
 }
 
-HTTPresponse::MIME web_utils::guess_mime_type(string filepath)
+HTTPResponse::MIME web_utils::guess_mime_type(string filepath)
 {
     size_t pos = filepath.find_last_of('.');
     string extension = filepath.substr(pos + 1);
 
     if (extension == "png")
-        return HTTPresponse::MIME::png;
+        return HTTPResponse::MIME::png;
     if (extension == "jpeg" || extension == "jpg")
-        return HTTPresponse::MIME::jpeg;
+        return HTTPResponse::MIME::jpeg;
+    if (extension == "svg")
+        return HTTPResponse::MIME::svg;
     if (extension == "js")
-        return HTTPresponse::MIME::javascript;
+        return HTTPResponse::MIME::javascript;
     if (extension == "html")
-        return HTTPresponse::MIME::html;
+        return HTTPResponse::MIME::html;
     if (extension == "css")
-        return HTTPresponse::MIME::css;
+        return HTTPResponse::MIME::css;
     if (extension == "mp4")
-        return HTTPresponse::MIME::mp4;
+        return HTTPResponse::MIME::mp4;
     if (extension == "mkv")
-        return HTTPresponse::MIME::mkv;
+        return HTTPResponse::MIME::mkv;
     if (extension == "pdf")
-        return HTTPresponse::MIME::pdf;
+        return HTTPResponse::MIME::pdf;
     if (extension == "vs")
-        return HTTPresponse::MIME::text;
+        return HTTPResponse::MIME::text;
     if (extension == "fs")
-        return HTTPresponse::MIME::text;
+        return HTTPResponse::MIME::text;
     // can't guess type, just return byte stream
-    return HTTPresponse::MIME::octet_stream;
+    return HTTPResponse::MIME::octet_stream;
 }
 
 bool web_utils::check_name(string name, const char *not_allowed)

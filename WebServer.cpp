@@ -262,13 +262,13 @@ void WebServer::add_to_read(int fd)
     fdmax = fd > fdmax ? fd : fdmax;
 }
 
-HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folder_path, string folder_name, HTTPresponse::ENCODING encoding)
+HTTPResponse WebServer::queue_file_future(int fd, string temp_path, string folder_path, string folder_name, HTTPResponse::ENCODING encoding)
 {
     auto file_future_it = fd_to_file_futures.find(fd);
     if (file_future_it != fd_to_file_futures.end())
     {
         if (file_futures.find(temp_to_path[file_future_it->second]) != file_futures.end())
-            return HTTPresponse(503).file_attachment(string("You can't queue zipping again!"), HTTPresponse::MIME::text);
+            return HTTPResponse(503).file_attachment(string("You can't queue zipping again!"), HTTPResponse::MIME::text);
     }
     auto future_it = file_futures.find(folder_path);
     auto downloading_it = downloading_futures.find(folder_path);
@@ -276,7 +276,7 @@ HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folde
     {
         fd_to_file_futures.insert({fd, temp_path});
         temp_to_path.insert({temp_path, folder_path});
-        auto response = HTTPresponse(200).content_disposition(HTTPresponse::DISP::Attachment, folder_name + ".zip").transfer_encoding(encoding).file_promise(temp_path.c_str());
+        auto response = HTTPResponse(200).content_disposition(HTTPResponse::DISP::Attachment, folder_name + ".zip").transfer_encoding(encoding).file_promise(temp_path.c_str());
         unordered_set<int> new_set;
         new_set.insert(fd);
         string full_path = "./" + folder_path;
@@ -295,7 +295,7 @@ HTTPresponse WebServer::queue_file_future(int fd, string temp_path, string folde
     return downloading_it->second.second;
 }
 
-HTTPresponse WebServer::process_http_request(HTTPRequest &request)
+HTTPResponse WebServer::process_http_request(HTTPRequest &request)
 {
     char *data = request.get_data();
     int fd = request.get_fd();
@@ -304,8 +304,8 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
     uint64_t total_size = request.total_size;
 
     char *content = data + header_size;
-    auto not_implemented = HTTPresponse(501).file_attachment("html/not_implemented.html", HTTPresponse::MIME::html);
-    auto not_found = HTTPresponse(404).file_attachment("html/not_found.html", HTTPresponse::MIME::html);
+    auto not_implemented = HTTPResponse(501).file_attachment("html/not_implemented.html", HTTPResponse::MIME::html);
+    auto not_found = HTTPResponse(404).file_attachment("html/not_found.html", HTTPResponse::MIME::html);
     const string redirect = "Redirecting...";
     SHA3 sha3(SHA3::Bits::Bits512);
 
@@ -321,14 +321,14 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
     // For now, if browser supports it, use deflate every time.
     // TODO: Define preferred encoding in a file instead of hard-coding it like this
     auto accepted_encodings = split_by_separators(http_fields["Accept-Encoding"], ", ");
-    HTTPresponse::ENCODING encoding = HTTPresponse::ENCODING::none;
+    HTTPResponse::ENCODING encoding = HTTPResponse::ENCODING::none;
     if (accepted_encodings.find("deflate") != accepted_encodings.end())
-        encoding = HTTPresponse::ENCODING::deflate;
+        encoding = HTTPResponse::ENCODING::deflate;
     if (accepted_encodings.find("gzip") != accepted_encodings.end())
-        encoding = HTTPresponse::ENCODING::gzip;
+        encoding = HTTPResponse::ENCODING::gzip;
 
     if (strstr(url, ".."))
-        return HTTPresponse(401).file_attachment(string("Incercati sa ma hackati dar in balta va-necati"), HTTPresponse::MIME::text);
+        return HTTPResponse(401).file_attachment(string("Incercati sa ma hackati dar in balta va-necati"), HTTPResponse::MIME::text);
     else if (!startcmp(url, "/login"))
     {
         auto desired_location = get_action_and_truncate(url_string, false);
@@ -340,7 +340,7 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
         switch (method)
         {
         case HTTPRequest::Method::GET:
-            return HTTPresponse(200).file_attachment("html/login.html", HTTPresponse::MIME::html);
+            return HTTPResponse(200).file_attachment("html/login.html", HTTPResponse::MIME::html);
         case HTTPRequest::Method::POST:
         {
             auto fields = get_content_fields(content, "=", "&");
@@ -354,9 +354,9 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
             {
                 SessionCookie *cookie = new SessionCookie();
                 cookies.insert({cookie->val(), cookie});
-                return HTTPresponse(302).cookie(cookie).location(desired_location).file_attachment(redirect, HTTPresponse::MIME::text);
+                return HTTPResponse(302).cookie(cookie).location(desired_location).file_attachment(redirect, HTTPResponse::MIME::text);
             }
-            return HTTPresponse(401).file_attachment("html/login_error.html", HTTPresponse::MIME::html);
+            return HTTPResponse(401).file_attachment("html/login_error.html", HTTPResponse::MIME::html);
         }
         default:
             return not_implemented;
@@ -367,14 +367,14 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
         switch (method)
         {
         case HTTPRequest::Method::OPTIONS:
-            return HTTPresponse(200).access_control("*").file_attachment(string("Te las boss sa te uiti numa"), HTTPresponse::MIME::text);
+            return HTTPResponse(200).access_control("*").file_attachment(string("Te las boss sa te uiti numa"), HTTPResponse::MIME::text);
         case HTTPRequest::Method::GET:
         case HTTPRequest::Method::POST:
         {
             fs::directory_entry check(url + 1);
             if (!fs::exists(check) || fs::is_directory(check))
                 return not_found;
-            return HTTPresponse(200).access_control("*").transfer_encoding(encoding).file_attachment(url + 1, guess_mime_type(url + 1));
+            return HTTPResponse(200).access_control("*").transfer_encoding(encoding).file_attachment(url + 1, guess_mime_type(url + 1));
         }
         default:
             return not_implemented;
@@ -384,7 +384,7 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
     {
         ping_machine.wind(10);
         string redirect_login = url_string == "/" ? "/login" : "/login/~" + url_string;
-        HTTPresponse login_page = HTTPresponse(302).location(redirect_login).file_attachment(redirect, HTTPresponse::MIME::text);
+        HTTPResponse login_page = HTTPResponse(302).location(redirect_login).file_attachment(redirect, HTTPResponse::MIME::text);
         string cookie = http_fields["Cookie"];
         char *cookie_copy = strdup(cookie.c_str());
         auto cookie_map = get_content_fields(cookie_copy, "=", ";");
@@ -423,7 +423,7 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
         }
         catch (const std::exception &e)
         {
-            return HTTPresponse(422).file_attachment(string("422 Unprocessable entity"), HTTPresponse::MIME::text);
+            return HTTPResponse(422).file_attachment(string("422 Unprocessable entity"), HTTPResponse::MIME::text);
         }
 
         // Normalize access to directories to end with '/' and access to files to not end with '/'
@@ -431,12 +431,12 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
         if (!doesnt_exist)
         {
             if (fs::is_directory(dir) && url_string[url_string.length() - 1] != '/')
-                return HTTPresponse(303).location("/" + url_string + "/").file_attachment(redirect, HTTPresponse::MIME::text);
+                return HTTPResponse(303).location("/" + url_string + "/").file_attachment(redirect, HTTPResponse::MIME::text);
         }
         else
         {
             if (url_string[url_string.length() - 1] == '/' && fs::exists(url_string.substr(0, url_string.length() - 1)))
-                return HTTPresponse(303).location("/" + url_string.substr(0, url_string.length() - 1)).file_attachment(redirect, HTTPresponse::MIME::text);
+                return HTTPResponse(303).location("/" + url_string.substr(0, url_string.length() - 1)).file_attachment(redirect, HTTPResponse::MIME::text);
         }
 
         switch (method)
@@ -445,7 +445,7 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
         {
             string action;
             if (!strcmp(url, "/"))
-                return HTTPresponse(200).file_attachment("html/select.html", HTTPresponse::MIME::html);
+                return HTTPResponse(200).file_attachment("html/select.html", HTTPResponse::MIME::html);
             if (!startcmp(url, "/control"))
             {
                 // Check if main control page
@@ -458,7 +458,7 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                     for (auto &w : wol_list)
                         response += "add_device(\"" + w.get_device_name() + " (" + w.get_ip() + ")\",\"" + w.get_mac_readable() + "\",\"" + w.get_type() + "\");";
                     response += "</script></body></html>";
-                    return HTTPresponse(200).file_attachment(response, HTTPresponse::MIME::html);
+                    return HTTPResponse(200).file_attachment(response, HTTPResponse::MIME::html);
                 }
                 // Check if any action on control page
                 action = get_action_and_truncate(url_string, false);
@@ -471,9 +471,9 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                     if (on_states.find('X') != std::string::npos)
                     {
                         std::cerr << "/bin/fping not found, please install it\n";
-                        return HTTPresponse(404).file_attachment(string("Please install fping on the server\n"), HTTPresponse::MIME::text);
+                        return HTTPResponse(404).file_attachment(string("Please install fping on the server\n"), HTTPResponse::MIME::text);
                     }
-                    return HTTPresponse(200).file_attachment(on_states, HTTPresponse::MIME::text);
+                    return HTTPResponse(200).file_attachment(on_states, HTTPResponse::MIME::text);
                 }
                 return not_found;
             }
@@ -488,10 +488,10 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
             if (fs::is_directory(url_string)) // Directory entry
             {
                 if (action == "") // Directory entry list page request
-                    return limited_access ? HTTPresponse(200).file_attachment("html/public_directory.html", HTTPresponse::MIME::html)
-                                          : HTTPresponse(200).file_attachment("html/directory.html", HTTPresponse::MIME::html);
+                    return limited_access ? HTTPResponse(200).file_attachment("html/public_directory.html", HTTPResponse::MIME::html)
+                                          : HTTPResponse(200).file_attachment("html/directory.html", HTTPResponse::MIME::html);
                 if (action == "entries") // Directory entry list request
-                    return HTTPresponse(200).file_attachment(generate_directory_data(url_string, public_paths, is_public), HTTPresponse::MIME::text);
+                    return HTTPResponse(200).file_attachment(generate_directory_data(url_string, public_paths, is_public), HTTPResponse::MIME::text);
                 if (action == "archive" || action == "encArchive") // directory archive download request
                 {
                     size_t delim = url_string.find_last_of('/', url_string.length() - 2);
@@ -501,7 +501,7 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                     int nr = std::count_if(fs::begin(it), fs::end(it), [](fs::directory_entry e)
                                            { return fs::is_regular_file(e); });
                     filename = filename + to_string(nr + 1) + ".zip";
-                    encoding = action == "encArchive" ? encoding : HTTPresponse::ENCODING::none;
+                    encoding = action == "encArchive" ? encoding : HTTPResponse::ENCODING::none;
                     return queue_file_future(fd, filename, path, folder_name, encoding);
                 }
                 if (action == "check") // directory archive status request
@@ -519,14 +519,14 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                             return not_found;
                         }
                         uint64_t full_size = std::get<4>(found_future->second);
-                        return HTTPresponse(200).file_attachment(to_string(temp_size) + ' ' + to_string(full_size), HTTPresponse::MIME::text);
+                        return HTTPResponse(200).file_attachment(to_string(temp_size) + ' ' + to_string(full_size), HTTPResponse::MIME::text);
                     }
                 }
                 return not_found;
             }
             // File entry
             if (action == "play/") // Used as a folder to simplify html
-                return HTTPresponse(200).file_attachment("html/video.html", HTTPresponse::MIME::html);
+                return HTTPResponse(200).file_attachment("html/video.html", HTTPResponse::MIME::html);
             if (action != "" && action != "encDownload") // If it's not any type of downlad, we have exhausted all possibilities, otherwise continue
                 return not_found;
 
@@ -534,7 +534,7 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                 url_string = url_string.substr(0, url_string.length() - 1);
 
             string filename = url_string.substr(url_string.find_last_of('/') + 1);
-            encoding = action == "encDownload" ? encoding : HTTPresponse::ENCODING::none;
+            encoding = action == "encDownload" ? encoding : HTTPResponse::ENCODING::none;
             uint64_t begin_offset = 0;
             if (http_fields["Range"] != "") // check if browser wants a start range
             {
@@ -543,17 +543,17 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                 std::stringstream range_num_stream(range_fields["bytes"]);
                 range_num_stream >> begin_offset;
                 free(range);
-                return HTTPresponse(206)
+                return HTTPResponse(206)
                     .file_promise(url_string.c_str())
                     .transfer_encoding(encoding)
-                    .content_disposition(HTTPresponse::DISP::Attachment, filename)
+                    .content_disposition(HTTPResponse::DISP::Attachment, filename)
                     .content_range(begin_offset)
-                    .attach_file(HTTPresponse::MIME::octet_stream);
+                    .attach_file(HTTPResponse::MIME::octet_stream);
             }
-            return HTTPresponse(200)
+            return HTTPResponse(200)
                 .transfer_encoding(encoding)
-                .content_disposition(HTTPresponse::DISP::Attachment, filename)
-                .file_attachment(url_string.c_str(), HTTPresponse::MIME::octet_stream);
+                .content_disposition(HTTPResponse::DISP::Attachment, filename)
+                .file_attachment(url_string.c_str(), HTTPResponse::MIME::octet_stream);
         }
         case HTTPRequest::Method::POST:
         {
@@ -568,28 +568,28 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                     auto fields = get_content_fields(content, "=", "&");
                     for (auto &field : fields)
                         fs::remove_all(url_string + parse_webstring(field.first, true));
-                    return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
+                    return HTTPResponse(303).location("/" + url_string).file_attachment(redirect, HTTPResponse::MIME::text);
                 }
                 if (action == "rename")
                 {
                     auto fields = get_content_fields(content, "=", "&");
                     string adjusted_name = parse_webstring(fields["new_name"], true);
                     if (fields["new_name"] == "" || !check_name(adjusted_name))
-                        return HTTPresponse(400).end_header();
+                        return HTTPResponse(400).end_header();
                     string parent_url = url_string.substr(0, url_string.find_last_of('/', url_string.length() - 2) + 1);
                     if (fs::exists(parent_url + adjusted_name))
-                        return HTTPresponse(303).location("/" + parent_url).file_attachment(redirect, HTTPresponse::MIME::text);
+                        return HTTPResponse(303).location("/" + parent_url).file_attachment(redirect, HTTPResponse::MIME::text);
                     fs::rename(url_string.substr(0, url_string.length() - 1), parent_url + adjusted_name);
-                    return HTTPresponse(303).location("/" + parent_url).file_attachment(redirect, HTTPresponse::MIME::text);
+                    return HTTPResponse(303).location("/" + parent_url).file_attachment(redirect, HTTPResponse::MIME::text);
                 }
                 if (user_session_cookie == NULL)
-                    return HTTPresponse(400).file_attachment(string("Please login to use this feature in debug mode"), HTTPresponse::MIME::text);
+                    return HTTPResponse(400).file_attachment(string("Please login to use this feature in debug mode"), HTTPResponse::MIME::text);
 
                 if (action == "cut")
                 {
                     auto files = split_by_separators(content, "&");
                     session_to_cut_files.insert({user_session_cookie->val(), {url_string, files}});
-                    return HTTPresponse(200).file_attachment(string("Cut registered succesfully"), HTTPresponse::MIME::text);
+                    return HTTPResponse(200).file_attachment(string("Cut registered succesfully"), HTTPResponse::MIME::text);
                 }
                 if (action == "paste")
                 {
@@ -603,7 +603,7 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                         fs::rename(source_path + file, url_string + file);
                     }
                     session_to_cut_files.erase(user_session_cookie->val());
-                    return HTTPresponse(200).file_attachment(string("Pasted successfully"), HTTPresponse::MIME::text);
+                    return HTTPResponse(200).file_attachment(string("Pasted successfully"), HTTPResponse::MIME::text);
                 }
                 return not_found;
             }
@@ -643,34 +643,34 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                                         {
                                             string filename = content_disposition.substr(filename_pos, filename_end - filename_pos);
                                             if (!check_name(filename))
-                                                return HTTPresponse(422).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
+                                                return HTTPResponse(422).location("/" + url_string).file_attachment(redirect, HTTPResponse::MIME::text);
                                             size_t file_header_size = file_content - content + boundary_val.length() + strlen(CRLF);
                                             // clear fd so that we treat file reception separately (NOTE: this doesn't close the connection)
                                             // remove_from_read(fd);
                                             // TODO: move this to HTTPRequest
                                             HTTPRequest::ProcessStatus status = request.start_file_reception(url_string + filename, boundary_val, file_content, read_size - file_header_size - header_size, total_size - read_size);
                                             if (status == HTTPRequest::ProcessStatus::error)
-                                                return HTTPresponse(500).end_header();
+                                                return HTTPResponse(500).end_header();
                                             if (status == HTTPRequest::ProcessStatus::complete)
-                                                return HTTPresponse(200).file_attachment(string("success"), HTTPresponse::MIME::text);
-                                            return HTTPresponse(HTTPresponse::PHONY);
+                                                return HTTPResponse(200).file_attachment(string("success"), HTTPResponse::MIME::text);
+                                            return HTTPResponse(HTTPResponse::PHONY);
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                    return HTTPresponse(400).end_header();
+                    return HTTPResponse(400).end_header();
                 }
             }
             auto fields = get_content_fields(content, "=", "&");
             // TODO: also check here (both existence of folder_name and also succesful directory creation)
             string folder_name = parse_webstring(fields["folder_name"], true);
             if (!check_name(folder_name))
-                return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
+                return HTTPResponse(303).location("/" + url_string).file_attachment(redirect, HTTPResponse::MIME::text);
             fs::create_directory(path + folder_name);
             // respond with redirect (Post/Redirect/Get pattern) to avoid form resubmission
-            return HTTPresponse(303).location("/" + url_string).file_attachment(redirect, HTTPresponse::MIME::text);
+            return HTTPResponse(303).location("/" + url_string).file_attachment(redirect, HTTPResponse::MIME::text);
         }
         case HTTPRequest::Method::PATCH:
         {
@@ -679,7 +679,7 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
             if (!strcmp(url, "/control/~awaken"))
             {
                 if (fields["turn_on"] == "" || fields["type"] == "" || fields["ip"] == "")
-                    return HTTPresponse(400).end_header();
+                    return HTTPResponse(400).end_header();
                 if (fields["type"] == "arduino")
                 {
                     if (iots.find(fields["ip"]) == iots.end())
@@ -690,12 +690,12 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                 {
                     wol::wake_on_lan(fields["turn_on"]).awaken();
                 }
-                return HTTPresponse(200).file_attachment(string("Awaken command sent"), HTTPresponse::MIME::text);
+                return HTTPResponse(200).file_attachment(string("Awaken command sent"), HTTPResponse::MIME::text);
             }
             if (!strcmp(url, "/control/~sleep"))
             {
                 if (fields["ip"] == "" || fields["type"] == "")
-                    return HTTPresponse(400).end_header();
+                    return HTTPResponse(400).end_header();
                 if (fields["type"] == "arduino")
                 {
                     if (iots.find(fields["ip"]) == iots.end())
@@ -706,7 +706,7 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                 {
                     n = send_udp(udpfd, REMOTE_SHUTDOWN_KEYWORD, strlen(REMOTE_SHUTDOWN_KEYWORD), fields["ip"].c_str(), REMOTE_SHUTDOWN_PORT);
                 }
-                return HTTPresponse(200).file_attachment(string("Sleep command sent"), HTTPresponse::MIME::text);
+                return HTTPResponse(200).file_attachment(string("Sleep command sent"), HTTPResponse::MIME::text);
             }
 
             // Change path permissions (make public / private)
@@ -714,7 +714,7 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
                 return not_found;
 
             if (fields["permission"] == "") // TODO: maybe make it so you can't change permission of files/ directory.
-                return HTTPresponse(400).end_header();
+                return HTTPResponse(400).end_header();
 
             if (url_string[url_string.length() - 1] == '/') // normalize url
                 url_string = url_string.substr(0, url_string.length() - 1);
@@ -723,24 +723,24 @@ HTTPresponse WebServer::process_http_request(HTTPRequest &request)
             {
                 std::ofstream public_paths_file(ConfigFiles::public_paths, std::ios::app);
                 if (!public_paths_file.is_open())
-                    return HTTPresponse(500).file_attachment(string("Couldn't open public paths file"), HTTPresponse::MIME::text);
+                    return HTTPResponse(500).file_attachment(string("Couldn't open public paths file"), HTTPResponse::MIME::text);
                 if (check_path_matches(url_string, public_paths) != web_utils::MatchType::none)
-                    return HTTPresponse(200).file_attachment(string("Path is already public"), HTTPresponse::MIME::text);
+                    return HTTPResponse(200).file_attachment(string("Path is already public"), HTTPResponse::MIME::text);
                 public_paths.push_back(url_string);
                 public_paths_file << url_string << '\n';
 
-                return HTTPresponse(200).file_attachment(string("Path is now public"), HTTPresponse::MIME::text);
+                return HTTPResponse(200).file_attachment(string("Path is now public"), HTTPResponse::MIME::text);
             }
             else if (fields["permission"] == "private")
             {
                 std::ofstream public_paths_file(ConfigFiles::public_paths);
                 if (!public_paths_file.is_open())
-                    return HTTPresponse(500).file_attachment(string("Couldn't open public paths file"), HTTPresponse::MIME::text);
+                    return HTTPResponse(500).file_attachment(string("Couldn't open public paths file"), HTTPResponse::MIME::text);
                 public_paths.erase(std::remove(public_paths.begin(), public_paths.end(), url_string), public_paths.end());
                 for (auto &path : public_paths)
                     public_paths_file << path << '\n';
 
-                return HTTPresponse(200).file_attachment(string("Path is now private"), HTTPresponse::MIME::text);
+                return HTTPResponse(200).file_attachment(string("Path is now private"), HTTPResponse::MIME::text);
             }
 
             return not_found;
@@ -781,7 +781,7 @@ void WebServer::run()
             {
                 // TODO: use return value of future
                 response.attach_file(
-                    HTTPresponse::MIME::zip, [](const char *filename, void *action_object)
+                    HTTPResponse::MIME::zip, [](const char *filename, void *action_object)
                     {
                         WebServer *server = (WebServer *)action_object;
                         string folder_path = server->temp_to_path[filename];
@@ -890,7 +890,7 @@ void WebServer::run()
                         // check rate limiter for new requests
                         if (request.is_new() && !rate_limiter.take_token(request.get_client_addr()))
                         {
-                            HTTPresponse rate_limited_response = HTTPresponse(429).file_attachment(string("Try again later"), HTTPresponse::MIME::text);
+                            HTTPResponse rate_limited_response = HTTPResponse(429).file_attachment(string("Try again later"), HTTPResponse::MIME::text);
                             send_exactly(i, rate_limited_response.to_c_str(), rate_limited_response.size());
                             // easier to close connection here, otherwise we would need to
                             // read the data from the socket just to discard it
@@ -914,7 +914,7 @@ void WebServer::run()
                         {
                             // TODO: return upload time here maybe and process it in ajax
                             request.reset(); // Reset for next request on same connection
-                            auto response = HTTPresponse(200).file_attachment(string("success"), HTTPresponse::MIME::text);
+                            auto response = HTTPResponse(200).file_attachment(string("success"), HTTPResponse::MIME::text);
                             send_exactly(i, response.to_c_str(), response.size());
                             continue;
                         }
@@ -923,7 +923,7 @@ void WebServer::run()
                         std::cout << request.get_data() << '\n';
 
                         std::cout << "Preparing response...\n";
-                        HTTPresponse response = process_http_request(request);
+                        HTTPResponse response = process_http_request(request);
                         std::cout << "Sending response...\n";
                         if (response.is_phony())
                             continue;

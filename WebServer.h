@@ -1,6 +1,6 @@
 #pragma once
 #include "common_utils.h"
-#include "HTTPresponse.h"
+#include "HTTPResponse.h"
 #include "HTTPRequest.h"
 #include "RateLimiter.h"
 #include "SessionCookie.h"
@@ -37,13 +37,13 @@ private:
     unordered_map<string, Cookie *>
         cookies;
     // tuple members are as follows: connections awaiting the file, future of file, response, temporary filename, size of final file (approximate for zips)
-    unordered_map<string, std::tuple<unordered_set<int>, std::future<int>, HTTPresponse, string, uint64_t>> file_futures;
-    unordered_map<string, std::pair<int, HTTPresponse>> downloading_futures;
+    unordered_map<string, std::tuple<unordered_set<int>, std::future<int>, HTTPResponse, string, uint64_t>> file_futures;
+    unordered_map<string, std::pair<int, HTTPResponse>> downloading_futures;
     unordered_map<string, string> temp_to_path;
     unordered_map<int, string> fd_to_file_futures;
     lock_writable_unordered_map<string, pid_t> path_to_pid;
 
-    unordered_map<int, HTTPresponse::filesegment_iterator *> unsent_files;
+    unordered_map<int, HTTPResponse::filesegment_iterator *> unsent_files;
 
     // Remembering cut files for each session cookie for file moving
     unordered_map<string, std::pair<string, unordered_set<string>>> session_to_cut_files;
@@ -62,8 +62,8 @@ private:
     void process_cookies();
     void remove_from_read(int fd);
     void add_to_read(int fd);
-    HTTPresponse queue_file_future(int fd, string temp_path, string folder_path, string folder_name, HTTPresponse::ENCODING encoding);
-    HTTPresponse process_http_request(HTTPRequest &request);
+    HTTPResponse queue_file_future(int fd, string temp_path, string folder_path, string folder_name, HTTPResponse::ENCODING encoding);
+    HTTPResponse process_http_request(HTTPRequest &request);
 
     // int zip_folder(char *destination, char *path)
     // zips folder located at path/name and places it in destination

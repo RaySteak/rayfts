@@ -3,7 +3,7 @@
 #include <unordered_set>
 #include <string>
 #include <string.h>
-#include "HTTPresponse.h"
+#include "HTTPResponse.h"
 
 namespace web_utils
 {
@@ -19,7 +19,7 @@ namespace web_utils
     std::unordered_map<std::string, std::string> get_content_fields(char *content, const char *is, const char *separators);
     std::string parse_webstring(std::string name, bool replace_plus); // overwrites the string upon parsing
     string encode_webstring(string name);
-    HTTPresponse::MIME guess_mime_type(std::string filepath);
+    HTTPResponse::MIME guess_mime_type(std::string filepath);
     void ping(int sockfd, struct in_addr ip_addr, int count);
     // old default not_allowed value: "/%~=". TODO: check if there are any new problems with new list
     bool check_name(std::string name, const char *not_allowed = "/"); // default list of characters not accepted

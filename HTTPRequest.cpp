@@ -110,7 +110,7 @@ HTTPRequest::ProcessStatus HTTPRequest::receive_proxyv2_data()
         return ProcessStatus::error;
 
     // Set client_addr based on received info
-    char addr_buffer[MAX_ADDR_LEN];
+    char addr_buffer[MAX_ADDR_LEN + 1];
     switch (proxyv2_header.fam)
     {
     case static_cast<uint8_t>(ProxyFamily::tcp_ipv4):
@@ -293,7 +293,7 @@ HTTPRequest::ProcessStatus HTTPRequest::receive_file_data()
     if (!recv_file_data)
         return ProcessStatus::error;
 
-    int buffer_remaining = buffer_size - read_size;
+    uint64_t buffer_remaining = buffer_size - read_size;
     int n = recv(fd, buffer + read_size, remaining > buffer_remaining ? buffer_remaining : remaining, 0);
     if (n <= 0)
     {

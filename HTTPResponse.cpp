@@ -1,11 +1,11 @@
-#include "HTTPresponse.h"
+#include "HTTPResponse.h"
 
 #include <iostream>
 #include <string.h>
 #include <sstream>
 #include "HTTPUtils.h"
 
-HTTPresponse::HTTPresponse(int code)
+HTTPResponse::HTTPResponse(int code)
 {
     if (code == PHONY)
         return;
@@ -55,13 +55,13 @@ HTTPresponse::HTTPresponse(int code)
     response += CRLF;
 }
 
-HTTPresponse &HTTPresponse::end_header()
+HTTPResponse &HTTPResponse::end_header()
 {
     response += CRLF;
     return *this;
 }
 
-HTTPresponse &HTTPresponse::content_length(uint64_t length)
+HTTPResponse &HTTPResponse::content_length(uint64_t length)
 {
     response += "Content-Length: ";
     response += to_string(length);
@@ -69,7 +69,7 @@ HTTPresponse &HTTPresponse::content_length(uint64_t length)
     return *this;
 }
 
-HTTPresponse &HTTPresponse::content_type(MIME type)
+HTTPResponse &HTTPResponse::content_type(MIME type)
 {
     response += "Content-Type: ";
     switch (type)
@@ -95,6 +95,9 @@ HTTPresponse &HTTPresponse::content_type(MIME type)
     case MIME::jpeg:
         response += "image/jpeg";
         break;
+    case MIME::svg:
+        response += "image/svg+xml";
+        break;
     case MIME::icon:
         response += "image/x-icon";
         break;
@@ -117,7 +120,7 @@ HTTPresponse &HTTPresponse::content_type(MIME type)
     return *this;
 }
 
-HTTPresponse &HTTPresponse::content_disposition(DISP disposition, string filename)
+HTTPResponse &HTTPResponse::content_disposition(DISP disposition, string filename)
 {
     response += "Content-Disposition: ";
     switch (disposition)
@@ -135,13 +138,13 @@ HTTPresponse &HTTPresponse::content_disposition(DISP disposition, string filenam
     return *this;
 }
 
-HTTPresponse &HTTPresponse::location(string url)
+HTTPResponse &HTTPResponse::location(string url)
 {
     response += "Location: " + url + CRLF;
     return *this;
 }
 
-HTTPresponse &HTTPresponse::cookie(Cookie *cookie)
+HTTPResponse &HTTPResponse::cookie(Cookie *cookie)
 {
     if (!cookie)
         return *this;
@@ -149,28 +152,28 @@ HTTPresponse &HTTPresponse::cookie(Cookie *cookie)
     return *this;
 }
 
-HTTPresponse &HTTPresponse::data(const char *filename)
+HTTPResponse &HTTPResponse::data(const char *filename)
 {
     std::ifstream f(filename, std::ios::binary);
     response += std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
     return *this;
 }
 
-HTTPresponse &HTTPresponse::file_promise(const char *filename)
+HTTPResponse &HTTPResponse::file_promise(const char *filename)
 {
     filename_str = filename;
     is_promise = true;
     return *this;
 }
 
-HTTPresponse &HTTPresponse::file_attachment(string data, MIME type)
+HTTPResponse &HTTPResponse::file_attachment(string data, MIME type)
 {
     content_type(type).content_length(data.length()).end_header();
     response += data;
     return *this;
 }
 
-HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type, uint64_t begin_offset)
+HTTPResponse &HTTPResponse::file_attachment(const char *filename, MIME type, uint64_t begin_offset)
 {
     this->filename_str = filename;
     this->begin_offset = begin_offset;
@@ -178,7 +181,7 @@ HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type, uin
     return *this;
 }
 
-HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type, std::function<void(const char *, void *)> action, void *action_object)
+HTTPResponse &HTTPResponse::file_attachment(const char *filename, MIME type, std::function<void(const char *, void *)> action, void *action_object)
 {
     file_action = action;
     this->action_object = action_object;
@@ -186,7 +189,7 @@ HTTPresponse &HTTPresponse::file_attachment(const char *filename, MIME type, std
     return *this;
 }
 
-HTTPresponse &HTTPresponse::attach_file(MIME type)
+HTTPResponse &HTTPResponse::attach_file(MIME type)
 {
     is_promise = false;
     std::ifstream file(filename_str, std::ios::binary);
@@ -201,7 +204,7 @@ HTTPresponse &HTTPresponse::attach_file(MIME type)
     return *this;
 }
 
-HTTPresponse &HTTPresponse::attach_file(MIME type, std::function<void(const char *, void *)> action, void *action_object)
+HTTPResponse &HTTPResponse::attach_file(MIME type, std::function<void(const char *, void *)> action, void *action_object)
 {
     file_action = action;
     this->action_object = action_object;
@@ -209,13 +212,13 @@ HTTPresponse &HTTPresponse::attach_file(MIME type, std::function<void(const char
     return *this;
 }
 
-HTTPresponse &HTTPresponse::access_control(string control)
+HTTPResponse &HTTPResponse::access_control(string control)
 {
     response += "Access-Control-Allow-Origin: " + control + CRLF;
     return *this;
 }
 
-HTTPresponse &HTTPresponse::content_range(uint64_t begin_offset)
+HTTPResponse &HTTPResponse::content_range(uint64_t begin_offset)
 {
     this->begin_offset = begin_offset;
     std::ifstream file(filename_str, std::ios::binary);
@@ -225,7 +228,7 @@ HTTPresponse &HTTPresponse::content_range(uint64_t begin_offset)
     return *this;
 }
 
-HTTPresponse &HTTPresponse::transfer_encoding(ENCODING encoding)
+HTTPResponse &HTTPResponse::transfer_encoding(ENCODING encoding)
 {
     if (encoding == ENCODING::none)
         return *this;
@@ -250,7 +253,7 @@ HTTPresponse &HTTPresponse::transfer_encoding(ENCODING encoding)
     return *this;
 }
 
-HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, size_t read_fragment_size, size_t max_fragment_size, uint64_t begin_offset)
+HTTPResponse::filesegment_iterator::filesegment_iterator(HTTPResponse *parent, size_t read_fragment_size, size_t max_fragment_size, uint64_t begin_offset)
 {
     this->read_fragment_size = read_fragment_size;
     this->max_fragment_size = max_fragment_size;
@@ -265,12 +268,12 @@ HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, s
     (*this)++;
 }
 
-HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse *parent, size_t read_fragment_size, uint64_t begin_offset)
+HTTPResponse::filesegment_iterator::filesegment_iterator(HTTPResponse *parent, size_t read_fragment_size, uint64_t begin_offset)
     : filesegment_iterator(parent, read_fragment_size, read_fragment_size, begin_offset)
 {
 }
 
-HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse::filesegment_iterator &&f)
+HTTPResponse::filesegment_iterator::filesegment_iterator(HTTPResponse::filesegment_iterator &&f)
 {
     this->file = f.file;
     this->action = f.action;
@@ -285,7 +288,7 @@ HTTPresponse::filesegment_iterator::filesegment_iterator(HTTPresponse::filesegme
     this->remaining = f.remaining;
 }
 
-HTTPresponse::filesegment_iterator::~filesegment_iterator()
+HTTPResponse::filesegment_iterator::~filesegment_iterator()
 {
     if (file)
     {
@@ -296,7 +299,7 @@ HTTPresponse::filesegment_iterator::~filesegment_iterator()
     }
 }
 
-HTTPresponse::filesegment_iterator &HTTPresponse::filesegment_iterator::operator++(int)
+HTTPResponse::filesegment_iterator &HTTPResponse::filesegment_iterator::operator++(int)
 {
     if (!remaining)
     {
@@ -310,12 +313,12 @@ HTTPresponse::filesegment_iterator &HTTPresponse::filesegment_iterator::operator
     return *this;
 }
 
-HTTPresponse::filesegment_iterator::data *HTTPresponse::filesegment_iterator::operator->()
+HTTPResponse::filesegment_iterator::data *HTTPResponse::filesegment_iterator::operator->()
 {
     return &file_data;
 }
 
-HTTPresponse::filesegment_iterator *HTTPresponse::begin_file_transfer(size_t fragment_size)
+HTTPResponse::filesegment_iterator *HTTPResponse::begin_file_transfer(size_t fragment_size)
 {
     switch (encoding)
     {
@@ -327,7 +330,7 @@ HTTPresponse::filesegment_iterator *HTTPresponse::begin_file_transfer(size_t fra
     }
 }
 
-size_t HTTPresponse::zlib_compress_iterator::init_deflate(size_t read_fragment_size, HTTPresponse::ENCODING encoding, int max_number_of_hex_digits)
+size_t HTTPResponse::zlib_compress_iterator::init_deflate(size_t read_fragment_size, HTTPResponse::ENCODING encoding, int max_number_of_hex_digits)
 {
     stream.zalloc = Z_NULL;
     stream.zfree = Z_NULL;
@@ -338,7 +341,7 @@ size_t HTTPresponse::zlib_compress_iterator::init_deflate(size_t read_fragment_s
     this->max_number_of_hex_digits = max_number_of_hex_digits;
 
     // This deflateInit2 call uses the same default parameters as deflateInit, the only change is choosing the encoding by setting bit 5 in the windowBits parameter
-    deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | (encoding == HTTPresponse::ENCODING::gzip ? 16 : 0), 8, Z_DEFAULT_STRATEGY);
+    deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | (encoding == HTTPResponse::ENCODING::gzip ? 16 : 0), 8, Z_DEFAULT_STRATEGY);
 
     max_compressed_size = deflateBound(&stream, read_fragment_size);
     // Fragment buffer size chosen to accommodate the maximum size of the deflate output + bytes for the hex size sent by http
@@ -347,7 +350,7 @@ size_t HTTPresponse::zlib_compress_iterator::init_deflate(size_t read_fragment_s
     return max_compressed_fragment_size;
 }
 
-void HTTPresponse::zlib_compress_iterator::deflate_chunk_fragment()
+void HTTPResponse::zlib_compress_iterator::deflate_chunk_fragment()
 {
     stream.avail_in = file_data.size;
     stream.next_in = (Bytef *)file_data.fragment;
@@ -389,8 +392,8 @@ void HTTPresponse::zlib_compress_iterator::deflate_chunk_fragment()
     compressed = actual_in_fragment;
 }
 
-HTTPresponse::zlib_compress_iterator::zlib_compress_iterator(HTTPresponse *parent, size_t read_fragment_size, uint64_t begin_offset, HTTPresponse::ENCODING encoding)
-    : HTTPresponse::filesegment_iterator(parent, read_fragment_size, init_deflate(read_fragment_size, encoding, 2 * sizeof(size_t)), begin_offset)
+HTTPResponse::zlib_compress_iterator::zlib_compress_iterator(HTTPResponse *parent, size_t read_fragment_size, uint64_t begin_offset, HTTPResponse::ENCODING encoding)
+    : HTTPResponse::filesegment_iterator(parent, read_fragment_size, init_deflate(read_fragment_size, encoding, 2 * sizeof(size_t)), begin_offset)
 {
     // Ties in with the in-class initialization of compressed. If we move this to init_deflate, compressed should
     // *not* be initialized to NULL in the class definition anymore or else it gets overwritten
@@ -403,15 +406,15 @@ HTTPresponse::zlib_compress_iterator::zlib_compress_iterator(HTTPresponse *paren
     deflate_chunk_fragment();
 }
 
-HTTPresponse::zlib_compress_iterator::zlib_compress_iterator(HTTPresponse::zlib_compress_iterator &&f)
-    : HTTPresponse::filesegment_iterator(std::move(f))
+HTTPResponse::zlib_compress_iterator::zlib_compress_iterator(HTTPResponse::zlib_compress_iterator &&f)
+    : HTTPResponse::filesegment_iterator(std::move(f))
 {
     this->stream = f.stream;
     this->compressed = f.compressed;
     f.compressed = NULL;
 }
 
-HTTPresponse::zlib_compress_iterator::~zlib_compress_iterator()
+HTTPResponse::zlib_compress_iterator::~zlib_compress_iterator()
 {
     if (file)
     {
@@ -422,7 +425,7 @@ HTTPresponse::zlib_compress_iterator::~zlib_compress_iterator()
     }
 }
 
-HTTPresponse::zlib_compress_iterator &HTTPresponse::zlib_compress_iterator::operator++(int)
+HTTPResponse::zlib_compress_iterator &HTTPResponse::zlib_compress_iterator::operator++(int)
 {
     filesegment_iterator::operator++(1);
     if (!file_data.size)
@@ -432,42 +435,42 @@ HTTPresponse::zlib_compress_iterator &HTTPresponse::zlib_compress_iterator::oper
     return *this;
 }
 
-string HTTPresponse::get_filename()
+string HTTPResponse::get_filename()
 {
     return filename_str;
 }
 
-bool HTTPresponse::filesegment_iterator::has_next()
+bool HTTPResponse::filesegment_iterator::has_next()
 {
     return file_data.size != 0;
 }
 
-bool HTTPresponse::is_multifragment_transfer()
+bool HTTPResponse::is_multifragment_transfer()
 {
     return filename_str != "";
 }
 
-bool HTTPresponse::is_promise_transfer()
+bool HTTPResponse::is_promise_transfer()
 {
     return is_promise;
 }
 
-bool HTTPresponse::is_phony()
+bool HTTPResponse::is_phony()
 {
     return response == "";
 }
 
-const char *HTTPresponse::to_c_str()
+const char *HTTPResponse::to_c_str()
 {
     return response.c_str();
 }
 
-std::size_t HTTPresponse::size()
+std::size_t HTTPResponse::size()
 {
     return response.size();
 }
 
-ostream &operator<<(ostream &out, const HTTPresponse &r)
+ostream &operator<<(ostream &out, const HTTPResponse &r)
 {
     out << r.response;
     return out;

@@ -11,7 +11,7 @@ using std::ostream;
 using std::string;
 using std::to_string;
 
-class HTTPresponse
+class HTTPResponse
 {
 public:
     enum class MIME
@@ -21,6 +21,7 @@ public:
         text,
         png,
         jpeg,
+        svg,
         javascript,
         css,
         icon,
@@ -55,24 +56,24 @@ private:
 public:
     static const int PHONY = 0; // means response must be sent later
 
-    HTTPresponse(int code);
-    HTTPresponse &end_header();
-    HTTPresponse &content_length(uint64_t length);
-    HTTPresponse &content_type(MIME type);
-    HTTPresponse &content_disposition(DISP disposition, string filename = "");
-    HTTPresponse &location(string url);
-    HTTPresponse &cookie(Cookie *cookie);
-    HTTPresponse &data(const char *filename);         // use with care, adds whole data from file on heap
-    HTTPresponse &file_promise(const char *filename); // only sets the filename string inside the class
-    HTTPresponse &file_attachment(string data, MIME type);
-    HTTPresponse &file_attachment(const char *filename, MIME type, uint64_t begin_offset = 0);
+    HTTPResponse(int code);
+    HTTPResponse &end_header();
+    HTTPResponse &content_length(uint64_t length);
+    HTTPResponse &content_type(MIME type);
+    HTTPResponse &content_disposition(DISP disposition, string filename = "");
+    HTTPResponse &location(string url);
+    HTTPResponse &cookie(Cookie *cookie);
+    HTTPResponse &data(const char *filename);         // use with care, adds whole data from file on heap
+    HTTPResponse &file_promise(const char *filename); // only sets the filename string inside the class
+    HTTPResponse &file_attachment(string data, MIME type);
+    HTTPResponse &file_attachment(const char *filename, MIME type, uint64_t begin_offset = 0);
     // use for when you want a certain action executed when finishing file transfer, e.g. removing temporary file when done
-    HTTPresponse &file_attachment(const char *filename, MIME type, std::function<void(const char *, void *)> action, void *action_object);
-    HTTPresponse &attach_file(MIME type);
-    HTTPresponse &attach_file(MIME type, std::function<void(const char *, void *)> action, void *action_object);
-    HTTPresponse &access_control(string control);
-    HTTPresponse &content_range(uint64_t begin_offset); // only support begin offsets for now
-    HTTPresponse &transfer_encoding(ENCODING encoding);
+    HTTPResponse &file_attachment(const char *filename, MIME type, std::function<void(const char *, void *)> action, void *action_object);
+    HTTPResponse &attach_file(MIME type);
+    HTTPResponse &attach_file(MIME type, std::function<void(const char *, void *)> action, void *action_object);
+    HTTPResponse &access_control(string control);
+    HTTPResponse &content_range(uint64_t begin_offset); // only support begin offsets for now
+    HTTPResponse &transfer_encoding(ENCODING encoding);
     class filesegment_iterator
     {
     private:
@@ -93,8 +94,8 @@ public:
         uint64_t remaining = 0;
 
     public:
-        filesegment_iterator(HTTPresponse *parent, size_t read_fragment_size, size_t max_fragment_size, uint64_t begin_offset);
-        filesegment_iterator(HTTPresponse *parent, size_t read_fragment_size, uint64_t begin_offset);
+        filesegment_iterator(HTTPResponse *parent, size_t read_fragment_size, size_t max_fragment_size, uint64_t begin_offset);
+        filesegment_iterator(HTTPResponse *parent, size_t read_fragment_size, uint64_t begin_offset);
         filesegment_iterator(filesegment_iterator &&f);
         filesegment_iterator(const filesegment_iterator &f) = default;
         virtual ~filesegment_iterator();
@@ -113,11 +114,11 @@ public:
         size_t max_compressed_fragment_size; // Has additional http stuff (see comments in init_deflate implementation)
         size_t max_compressed_size;          // Maximum size zlib might output
 
-        inline size_t init_deflate(size_t read_fragment_size, HTTPresponse::ENCODING encoding, int max_number_of_hex_digits);
+        inline size_t init_deflate(size_t read_fragment_size, HTTPResponse::ENCODING encoding, int max_number_of_hex_digits);
         void deflate_chunk_fragment();
 
     public:
-        zlib_compress_iterator(HTTPresponse *parent, size_t read_fragment_size, uint64_t begin_offset, HTTPresponse::ENCODING encoding);
+        zlib_compress_iterator(HTTPResponse *parent, size_t read_fragment_size, uint64_t begin_offset, HTTPResponse::ENCODING encoding);
         zlib_compress_iterator(zlib_compress_iterator &&f);
         zlib_compress_iterator(const zlib_compress_iterator &f) = default;
         ~zlib_compress_iterator() override;
@@ -130,5 +131,5 @@ public:
     bool is_phony();
     const char *to_c_str();
     std::size_t size();
-    friend ostream &operator<<(ostream &out, const HTTPresponse &r);
+    friend ostream &operator<<(ostream &out, const HTTPResponse &r);
 };
