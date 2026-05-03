@@ -188,7 +188,7 @@ string web_utils::generate_directory_data(string path, std::vector<string> &publ
                 (fs::is_directory(entry) ? "-" : to_string(fs::file_size(entry))) + ";" +
                 permission + "\n";
     }
-    auto stat = fs::space("files/");
+    auto stat = fs::space(path);
     data += to_string(stat.capacity) + "\n" + to_string(stat.capacity - stat.free) + "\n";
     data += cur_public ? "public" : "private";
     return data;
