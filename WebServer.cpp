@@ -435,7 +435,7 @@ HTTPResponse WebServer::process_http_request(HTTPRequest &request)
         }
         else
         {
-            if (url_string[url_string.length() - 1] == '/' && fs::exists(url_string.substr(0, url_string.length() - 1)))
+            if (url_string.length() && url_string[url_string.length() - 1] == '/' && fs::exists(url_string.substr(0, url_string.length() - 1)))
                 return HTTPResponse(303).location("/" + url_string.substr(0, url_string.length() - 1)).file_attachment(redirect, HTTPResponse::MIME::text);
         }
 
@@ -757,7 +757,7 @@ void WebServer::run()
 {
     while (1)
     {
-        // std::cout << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
+        // std::cerr << file_futures.size() << ' ' << downloading_futures.size() << ' ' << temp_to_path.size() << ' ' << fd_to_file_futures.size() << ' ' << path_to_pid.size() << '\n';
         tmp_fds = read_fds;
         int available_requests;
         if (unsent_files.size() == 0 && file_futures.size() == 0)
@@ -859,8 +859,8 @@ void WebServer::run()
                 {
                     if (i == STDIN_FILENO)
                     {
-                        if (!fgets(buffer, BUFLEN, stdin))
-                            break;
+                        if (!fgets(buffer, BUFLEN, stdin)) // Probably means server is run headless so we ignore it
+                            continue;
                         if (!startcmp(buffer, "exit"))
                             break;
                         if (!startcmp(buffer, "debug"))
@@ -885,7 +885,7 @@ void WebServer::run()
                     {
                         HTTPRequest &request = connections.find(i)->second;
 
-                        std::cout << "Receiving request from IP " << request.get_client_addr() << "...\n";
+                        std::cerr << "Receiving request from IP " << request.get_client_addr() << "...\n";
 
                         // check rate limiter for new requests
                         if (request.is_new() && !rate_limiter.take_token(request.get_client_addr()))
@@ -920,11 +920,11 @@ void WebServer::run()
                         }
 
                         // TODO: replace with actual logging
-                        std::cout << request.get_data() << '\n';
+                        std::cerr << request.get_data() << '\n';
 
-                        std::cout << "Preparing response...\n";
+                        std::cerr << "Preparing response...\n";
                         HTTPResponse response = process_http_request(request);
-                        std::cout << "Sending response...\n";
+                        std::cerr << "Sending response...\n";
                         if (response.is_phony())
                             continue;
                         request.reset(); // Reset for next request on same connection
@@ -934,7 +934,7 @@ void WebServer::run()
                             if (response.is_multifragment_transfer())
                                 unsent_files.insert({i, response.begin_file_transfer()});
                         }
-                        std::cout << "Response has been sent\n";
+                        std::cerr << "Response has been sent\n";
                     }
                 }
             }

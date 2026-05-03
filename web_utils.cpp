@@ -197,7 +197,7 @@ string web_utils::generate_directory_data(string path, std::vector<string> &publ
 web_utils::MatchType web_utils::check_path_matches(std::string path, std::vector<std::string> &match_list)
 {
     get_action_and_truncate(path, false); // TODO: this will no longer be needed when action processing is finally done properly (with query params)
-    if (path[path.length() - 1] == '/')
+    if (path.length() && path[path.length() - 1] == '/')
         path = path.substr(0, path.length() - 1);
 
     for (auto &m : match_list)

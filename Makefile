@@ -3,7 +3,7 @@
 CC = g++
 CFLAGS = -Wall -Wextra -std=c++17 -O3 -D_FILE_OFFSET_BITS=64 -Wno-psabi -c
 LDFLAGS = -s
-LDLIBS = -lboost_filesystem -lboost_system -lpthread -lz
+LDLIBS = -lboost_filesystem -lpthread -lz
 HEADERS = lock_writable_unordered_map.h web_utils.h common_utils.h WebServer.h \
 	HTTPResponse.h HTTPRequest.h Cookie.h SessionCookie.h wake_on_lan.h \
 	ping_device.h arduino/arduino_constants.h RateLimiter.h
@@ -17,10 +17,11 @@ DIGEST_DUMMY_SALT_PASS = e072da9305f63fa35fc0b18d3c4b8e35994368567fcdf9d3675fd05
 
 all: server
 
-debug: CFLAGS := $(filter-out -O3,$(CFLAGS))
+debug: CFLAGS := $(filter-out -O3, $(CFLAGS))
 debug: LDFLAGS := $(filter-out -s, $(LDFLAGS))
-debug: CFLAGS += -g -rdynamic -DSERVER_DEBUG
-debug: LDFLAGS += -rdynamic
+debug: CFLAGS += -g -rdynamic -DSERVER_DEBUG -fsanitize=address,undefined
+debug: LDFLAGS += -fsanitize=address,undefined -rdynamic
+# debug: LDLIBS += -lubsan
 debug: server
 
 server: server.o WebServer.o HTTPResponse.o HTTPRequest.o Cookie.o SessionCookie.o web_utils.o wake_on_lan.o ping_device.o common_utils.o arduino/arduino_constants.o crypto/sha3.o RateLimiter.o
