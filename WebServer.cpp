@@ -2,6 +2,7 @@
 #include "web_utils.h"
 #include "HTTPUtils.h"
 #include "wake_on_lan.h"
+#include "mail.h"
 #include "remote_shutdown/remote_shutdown.h"
 #include "arduino/arduino_constants.h"
 #include "crypto/sha3.h"
@@ -24,6 +25,7 @@ using std::unordered_map;
 namespace fs = boost::filesystem;
 
 const char *const WebServer::ConfigFiles::wol_list = "WolList.txt";
+const char *const WebServer::ConfigFiles::mail_list = "MailList.txt";
 const char *const WebServer::ConfigFiles::public_paths = "PublicPaths.txt";
 
 void WebServer::init_server_params(int port, const char *user, const char *salt, const char *salt_pass_digest)
@@ -380,7 +382,7 @@ HTTPResponse WebServer::process_http_request(HTTPRequest &request)
             return not_implemented;
         }
     }
-    else if (!startcmp(url, "/files/") || !strcmp(url, "/") || !startcmp(url, "/control")) // private stuff that requires passwords
+    else if (!startcmp(url, "/files/") || !strcmp(url, "/") || !startcmp(url, "/control") || !startcmp(url, "/mail")) // private stuff that requires passwords
     {
         ping_machine.wind(10);
         string redirect_login = url_string == "/" ? "/login" : "/login/~" + url_string;
@@ -477,6 +479,15 @@ HTTPResponse WebServer::process_http_request(HTTPRequest &request)
                 }
                 return not_found;
             }
+            if (!startcmp(url, "/mail"))
+            {
+                // Check if main mail page
+                if (!strcmp(url, "/mail"))
+                    return HTTPResponse(200).file_attachment("html/mail.html", HTTPResponse::MIME::html);
+                if (!strcmp(url, "/mail/list"))                                                                 // Return the csv directly and process it in frontend
+                    return HTTPResponse(200).file_attachment(ConfigFiles::mail_list, HTTPResponse::MIME::text); // TODO: remove smtp user and pass from the list for security reasons
+                return not_found;
+            }
             if (doesnt_exist)
             {
                 action = get_action_and_truncate(url_string);
@@ -557,8 +568,52 @@ HTTPResponse WebServer::process_http_request(HTTPRequest &request)
         }
         case HTTPRequest::Method::POST:
         {
-            if (limited_access) // No POST allowed for limited access
-                return not_implemented;
+            // if (limited_access) // No POST allowed for limited access
+            //     return not_implemented;
+
+            if (!startcmp(url, "/mail"))
+            {
+                if (!strcmp(url, "/mail"))
+                {
+                    auto fields = get_content_fields(content, "=", "&");
+                    string sender_address = parse_webstring(fields["sender_address"], false);
+                    string sender_name = parse_webstring(fields["sender_name"], false);
+                    string recipient_address = parse_webstring(fields["recipient_address"], false);
+                    string recipient_name = parse_webstring(fields["recipient_name"], false);
+                    string mail_server = parse_webstring(fields["mail_server"], false);
+                    if (sender_address == "" || sender_name == "" || recipient_address == "" || recipient_name == "" || mail_server == "")
+                        return HTTPResponse(400).file_attachment(string("Please fill in all the fields"), HTTPResponse::MIME::text);
+                    string username = fields["smtp_user"], password = fields["smtp_pass"];
+                    if ((username == "" && password != "") || (username != "" && password == ""))
+                        return HTTPResponse(400).file_attachment(string("Please fill in both username and password fields or leave them both empty"), HTTPResponse::MIME::text);
+
+                    mail::Mail mail(sender_address, sender_name, recipient_address, recipient_name, mail_server, username, password);
+                    mail::Mail::add_to_list(mail, ConfigFiles::mail_list);
+                    return HTTPResponse(200).file_attachment(string("Mail added to list"), HTTPResponse::MIME::text);
+                }
+                if (!strcmp(url, "/mail/send"))
+                {
+                    auto fields = get_content_fields(content, "=", "&");
+                    vector<mail::Mail> mails_to_send = mail::Mail::parse_list(ConfigFiles::mail_list);
+                    string subject = parse_webstring(fields["subject"], false), message = parse_webstring(fields["message"], false);
+                    if (subject == "" || message == "")
+                        return HTTPResponse(400).file_attachment(string("Please fill in all the fields"), HTTPResponse::MIME::text);
+
+                    for (auto &field : fields)
+                    {
+                        if (field.first != "index")
+                            continue;
+                        int index = stoi(field.second);
+                        if (index < 0)
+                            return HTTPResponse(400).file_attachment(string("Invalid index"), HTTPResponse::MIME::text);
+                        if (index >= int(mails_to_send.size()))
+                            return HTTPResponse(400).file_attachment(string("Invalid index"), HTTPResponse::MIME::text);
+                        mails_to_send[index].send(subject, message); // TODO: this will wait for the request to finish, maybe just make it async
+                    }
+                    return HTTPResponse(200).file_attachment(string("Mails sent"), HTTPResponse::MIME::text);
+                }
+                return not_found;
+            }
 
             if (doesnt_exist)
             {

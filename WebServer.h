@@ -86,6 +86,7 @@ public:
     {
     public:
         static const char *const wol_list;
+        static const char *const mail_list;
         static const char *const public_paths;
     };
 

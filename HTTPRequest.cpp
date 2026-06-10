@@ -138,13 +138,13 @@ std::string HTTPRequest::get_client_addr()
 
 HTTPRequest::ProcessStatus HTTPRequest::receive_header()
 {
-    new_request = false;
     int n = recv(fd, buffer + read_size, buffer_size - read_size, 0);
     if (n <= 0)
         return ProcessStatus::error;
     buffer[read_size + n] = 0;
-    if (read_size == 0)
+    if (new_request)
     {
+        new_request = false;
         // TODO: implement regex-style check for valid request line
         // this would allow requests where first line is split across multiple recv calls
         if (get_method() == Method::nil)
@@ -293,7 +293,7 @@ HTTPRequest::ProcessStatus HTTPRequest::receive_file_data()
     if (!recv_file_data)
         return ProcessStatus::error;
 
-    uint64_t buffer_remaining = buffer_size - read_size;
+    size_t buffer_remaining = buffer_size - read_size;
     int n = recv(fd, buffer + read_size, remaining > buffer_remaining ? buffer_remaining : remaining, 0);
     if (n <= 0)
     {

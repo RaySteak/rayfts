@@ -3,7 +3,7 @@
 CC = g++
 CFLAGS = -Wall -Wextra -std=c++17 -O3 -D_FILE_OFFSET_BITS=64 -Wno-psabi -c
 LDFLAGS = -s
-LDLIBS = -lboost_filesystem -lpthread -lz
+LDLIBS = -lboost_filesystem -lpthread -lz -lcurl
 HEADERS = lock_writable_unordered_map.h web_utils.h common_utils.h WebServer.h \
 	HTTPResponse.h HTTPRequest.h Cookie.h SessionCookie.h wake_on_lan.h \
 	ping_device.h arduino/arduino_constants.h RateLimiter.h
@@ -24,7 +24,7 @@ debug: LDFLAGS += -fsanitize=address,undefined -rdynamic
 # debug: LDLIBS += -lubsan
 debug: server
 
-server: server.o WebServer.o HTTPResponse.o HTTPRequest.o Cookie.o SessionCookie.o web_utils.o wake_on_lan.o ping_device.o common_utils.o arduino/arduino_constants.o crypto/sha3.o RateLimiter.o
+server: server.o WebServer.o HTTPResponse.o HTTPRequest.o Cookie.o SessionCookie.o web_utils.o wake_on_lan.o mail.o ping_device.o common_utils.o arduino/arduino_constants.o crypto/sha3.o RateLimiter.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 %.o: %.cpp $(HEADERS)
